@@ -1,0 +1,32 @@
+{
+  "name": "free-hand-api",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "jose": "^5.9.3",
+    "pg": "^8.18.0",
+    "zod": "^3.25.76"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rubayetkabirzisan/TalentX-AI-and-Data-Expert-Marketplace-BackEnd.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rubayetkabirzisan/TalentX-AI-and-Data-Expert-Marketplace-BackEnd/issues"
+  },
+  "homepage": "https://github.com/rubayetkabirzisan/TalentX-AI-and-Data-Expert-Marketplace-BackEnd#readme",
+  "description": "",
+  "devDependencies": {
+    "nodemon": "^3.1.11"
+  }
+}
