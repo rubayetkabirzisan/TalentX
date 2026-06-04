@@ -42,14 +42,14 @@ export function authRequired() {
     try {
       // ✅ Mode 1: none (bypass)
       if (AUTH_PROVIDER === "none") {
-        attachUser(req, {
-          id: "dev-user",
-          auth_provider_id: "dev-user",
-          name: "Dev User",
-          role: "employer", // set default role for MVP
-        });
-        return next();
-      }
+  attachUser(req, {
+    id: "00000000-0000-0000-0000-000000000001",
+    auth_provider_id: "dev-user",
+    name: "Dev User",
+    role: "employer",
+  });
+  return next();
+}
 
       // ✅ Mode 2: header (fake auth)
       if (AUTH_PROVIDER === "header") {
