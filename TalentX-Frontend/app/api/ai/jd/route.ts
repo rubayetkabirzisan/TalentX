@@ -1,47 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+
 export async function POST(request: NextRequest) {
   try {
     const { title, technologies } = await request.json()
 
-    if (!title || !technologies || technologies.length === 0) {
+    if (!title || !technologies?.length) {
       return NextResponse.json(
         { error: 'Title and technologies are required' },
         { status: 400 }
       )
     }
 
-    // TODO: Replace with real AI API call (e.g., OpenAI, Anthropic)
-    // For now, generate a mock JD
-    const techStack = technologies.join(', ')
-    const description = `${title} Position
+    const res = await fetch(`${BACKEND}/ai/generate-jd`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, tech_stack: technologies }),
+    })
 
-We are looking for an experienced ${title} to join our team.
-
-Key Responsibilities:
-- Lead the development of core features
-- Collaborate with cross-functional teams
-- Mentor junior engineers
-- Contribute to architecture decisions
-- Ensure code quality and best practices
-
-Required Skills:
-- Expertise in ${techStack}
-- 5+ years of professional experience
-- Strong problem-solving abilities
-- Excellent communication skills
-
-Nice to Have:
-- Experience with scalable systems
-- Open source contributions
-- Technical leadership experience
-- Knowledge of DevOps practices
-
-We offer competitive salary, remote work options, and growth opportunities.`
-
-    return NextResponse.json({ description })
+    const json = await res.json()
+    return NextResponse.json({ description: json.data?.description ?? '' })
   } catch (error) {
-    console.error('[v0] Error generating JD:', error)
+    console.error('[ai/jd] error:', error)
     return NextResponse.json(
       { error: 'Failed to generate job description' },
       { status: 500 }

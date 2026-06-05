@@ -1,58 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Mock database - replace with real data fetching
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Senior Frontend Engineer',
-    company: 'Vercel',
-    applicationCount: 42,
-  },
-  {
-    id: '2',
-    title: 'Full Stack Developer',
-    company: 'Stripe',
-    applicationCount: 38,
-  },
-  {
-    id: '3',
-    title: 'Product Designer',
-    company: 'Figma',
-    applicationCount: 25,
-  },
-  {
-    id: '4',
-    title: 'DevOps Engineer',
-    company: 'Google Cloud',
-    applicationCount: 31,
-  },
-  {
-    id: '5',
-    title: 'Backend Engineer',
-    company: 'Notion',
-    applicationCount: 45,
-  },
-  {
-    id: '6',
-    title: 'Data Scientist',
-    company: 'OpenAI',
-    applicationCount: 52,
-  },
-]
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams
-  const search = searchParams.get('search')?.toLowerCase() || ''
+  try {
+    const search = request.nextUrl.searchParams.get('search')
+    const url = search
+      ? `${BACKEND}/jobs?search=${encodeURIComponent(search)}`
+      : `${BACKEND}/jobs`
 
-  let results = mockJobs
-
-  if (search) {
-    results = mockJobs.filter(
-      (job) =>
-        job.title.toLowerCase().includes(search) ||
-        job.company.toLowerCase().includes(search)
-    )
+    const res = await fetch(url)
+    const json = await res.json()
+    return NextResponse.json(json.data ?? [])
+  } catch (error) {
+    console.error('[jobs] fetch error:', error)
+    return NextResponse.json([], { status: 500 })
   }
-
-  return NextResponse.json(results)
 }
