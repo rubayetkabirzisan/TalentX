@@ -129,6 +129,33 @@ router.get(
   }
 );
 
+// GET /employer/jobs
+router.get(
+  "/jobs",
+  authRequired(),
+  roleGuard("employer"),
+  async (req, res, next) => {
+    try {
+      const sql = `
+        select
+          id,
+          employer_id,
+          title,
+          tech_stack,
+          deadline,
+          description,
+          created_at
+        from jobs
+        where employer_id = $1
+        order by created_at desc;
+      `;
+      const { rows } = await query(sql, [req.user.id]);
+      res.json({ data: rows });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
 // POST /employer/jobs/:id/invite
 router.post(
   "/jobs/:id/invite",
