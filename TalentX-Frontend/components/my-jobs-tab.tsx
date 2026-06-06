@@ -34,7 +34,14 @@ export function MyJobsTab({ onSelectJob }: MyJobsTabProps) {
     const fetchJobs = async () => {
       try {
         setError(null)
-        const response = await fetch('/api/employer/jobs')
+        const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch('/api/employer/jobs', {
+  headers: {
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
+})
         if (!response.ok) throw new Error('Failed to fetch jobs')
         const data = await response.json()
         setJobs(data)

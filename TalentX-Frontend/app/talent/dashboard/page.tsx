@@ -1,5 +1,5 @@
 'use client'
-
+import { DemoAuth } from '@/components/demo-auth'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { JobMatchFeed } from '@/components/job-match-feed'
 import { InvitationsTab } from '@/components/invitations-tab'
@@ -74,6 +74,7 @@ export default function TalentDashboard() {
         </Tabs>
       </div>
 
+      <DemoAuth />
       <Toaster />
     </main>
   )

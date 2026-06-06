@@ -2,14 +2,19 @@ import { NextRequest, NextResponse } from 'next/server'
 
 const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
-const DEV_HEADERS = {
-  'Content-Type': 'application/json',
-}
-
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
+
     const res = await fetch(`${BACKEND}/employer/jobs`, {
-      headers: DEV_HEADERS,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-role': role,
+        'x-name': name,
+      },
     })
     const json = await res.json()
     return NextResponse.json(json.data ?? [])
@@ -21,11 +26,19 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
     const body = await request.json()
 
     const res = await fetch(`${BACKEND}/employer/jobs`, {
       method: 'POST',
-      headers: DEV_HEADERS,
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-role': role,
+        'x-name': name,
+      },
       body: JSON.stringify({
         title: body.title,
         tech_stack: body.technologies ?? body.tech_stack ?? [],
@@ -35,7 +48,6 @@ export async function POST(request: NextRequest) {
     })
 
     const json = await res.json()
-
     if (!res.ok) {
       return NextResponse.json(
         { error: json.error?.message || 'Failed to create job' },

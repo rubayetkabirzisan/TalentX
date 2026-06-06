@@ -12,11 +12,10 @@ import {
 import { Badge } from '@/components/ui/badge'
 
 interface Applicant {
-  id: string
-  name: string
-  email: string
+  talent_id: string
+  talent_name: string
   source: string
-  appliedAt: string
+  applied_at: string
 }
 
 interface ApplicantsTabProps {
@@ -38,9 +37,17 @@ export function ApplicantsTab({ jobId }: ApplicantsTabProps) {
       try {
         setError(null)
         setIsLoading(true)
-        const response = await fetch(
-          `/api/employer/jobs/${jobId}/applicants`
-        )
+        const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch(
+  `/api/employer/jobs/${jobId}/applicants`,
+  {
+    headers: {
+      'x-user-id': auth.email || '',
+      'x-role': auth.role || '',
+      'x-name': auth.name || '',
+    },
+  }
+)
         if (!response.ok) throw new Error('Failed to fetch applicants')
         const data = await response.json()
         setApplicants(data)
@@ -85,24 +92,22 @@ export function ApplicantsTab({ jobId }: ApplicantsTabProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
-            <TableHead>Source</TableHead>
-            <TableHead>Applied Date</TableHead>
+<TableHead>Source</TableHead>
+<TableHead>Applied Date</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {applicants.map((applicant) => (
-            <TableRow key={applicant.id}>
-              <TableCell className="font-medium">{applicant.name}</TableCell>
-              <TableCell>{applicant.email}</TableCell>
-              <TableCell>
-                <Badge variant="secondary">{applicant.source}</Badge>
-              </TableCell>
-              <TableCell>
-                {new Date(applicant.appliedAt).toLocaleDateString()}
-              </TableCell>
-            </TableRow>
-          ))}
+  <TableRow key={applicant.talent_id}>
+    <TableCell className="font-medium">{applicant.talent_name}</TableCell>
+    <TableCell>
+      <Badge variant="secondary">{applicant.source}</Badge>
+    </TableCell>
+    <TableCell>
+      {new Date(applicant.applied_at).toLocaleDateString()}
+    </TableCell>
+  </TableRow>
+))}
         </TableBody>
       </Table>
     </div>

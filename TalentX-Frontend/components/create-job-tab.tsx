@@ -47,9 +47,15 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
 
     setIsGenerating(true)
     try {
-      const response = await fetch('/api/ai/jd', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch('/api/ai/jd', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
         body: JSON.stringify({
           title: formData.title,
           technologies: formData.technologies.split(',').map((t) => t.trim()),
@@ -89,9 +95,15 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
     }
 
     try {
-      const response = await fetch('/api/employer/jobs', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch('/api/employer/jobs', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
         body: JSON.stringify({
           ...formData,
           technologies: formData.technologies

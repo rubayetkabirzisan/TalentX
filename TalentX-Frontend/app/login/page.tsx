@@ -1,13 +1,13 @@
 'use client'
 
-import React from "react"
-
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import Link from 'next/link'
 import { ArrowLeft } from 'lucide-react'
+
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -16,7 +16,7 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<'Talent' | 'Employer'>('Talent')
+  const [role, setRole] = useState<'talent' | 'employer'>('talent')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -26,30 +26,49 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Mock login - in production, call your auth API
       if (!email || !password) {
         setError('Please fill in all fields')
         return
       }
 
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
+      // Call backend to upsert user and get their real DB id
+      const res = await fetch(`${BACKEND}/me/onboard`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': email,          // use email as unique identifier
+          'x-role': role,
+          'x-name': email.split('@')[0], // use email prefix as display name
+        },
+        body: JSON.stringify({ role, name: email.split('@')[0] }),
+      })
 
-      // Store mock auth
-      localStorage.setItem(
-        'mockAuth',
-        JSON.stringify({
-          email,
-          role,
-          loggedInAt: new Date().toISOString(),
-        })
-      )
+      if (!res.ok) {
+        const json = await res.json()
+        setError(json?.error?.message || 'Login failed')
+        return
+      }
 
-      // Redirect to return URL or home
-      router.push(returnUrl)
+      const json = await res.json()
+      const user = json.data
+
+      // Store real user info from DB
+      localStorage.setItem('auth', JSON.stringify({
+        id: user.id,
+        email,
+        role: user.role,
+        name: user.name,
+      }))
+
+      // Redirect based on role
+      if (user.role === 'employer') {
+        router.push('/employer/dashboard')
+      } else {
+        router.push('/talent/dashboard')
+      }
     } catch (err) {
       setError('Login failed. Please try again.')
-      console.error('[v0] Login error:', err)
+      console.error('Login error:', err)
     } finally {
       setIsLoading(false)
     }
@@ -115,9 +134,9 @@ export default function LoginPage() {
                   <input
                     type="radio"
                     name="role"
-                    value="Talent"
-                    checked={role === 'Talent'}
-                    onChange={(e) => setRole(e.target.value as 'Talent')}
+                    value="talent"
+                    checked={role === 'talent'}
+                    onChange={() => setRole('talent')}
                     disabled={isLoading}
                   />
                   <span className="text-sm text-foreground">Job Seeker</span>
@@ -126,9 +145,9 @@ export default function LoginPage() {
                   <input
                     type="radio"
                     name="role"
-                    value="Employer"
-                    checked={role === 'Employer'}
-                    onChange={(e) => setRole(e.target.value as 'Employer')}
+                    value="employer"
+                    checked={role === 'employer'}
+                    onChange={() => setRole('employer')}
                     disabled={isLoading}
                   />
                   <span className="text-sm text-foreground">Employer</span>
@@ -136,35 +155,25 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
               {isLoading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary hover:underline">
               Sign up
             </Link>
           </p>
         </div>
 
-        {/* Demo credentials info */}
         <div className="mt-8 rounded-lg border border-border bg-muted/50 p-4">
-          <p className="text-sm font-medium text-foreground mb-2">
-            Demo Credentials
-          </p>
-          <p className="text-xs text-muted-foreground mb-2">
-            Use any email and password to login. Select your role (Job Seeker or Employer).
-          </p>
+          <p className="text-sm font-medium text-foreground mb-2">How to use</p>
           <ul className="text-xs text-muted-foreground space-y-1">
-            <li>• Job Seekers can apply to positions</li>
-            <li>• Employers see a different view in job listings</li>
+            <li>• Enter any email + password to create/login your account</li>
+            <li>• Select your role — Job Seeker or Employer</li>
+            <li>• Your account is saved to the real database</li>
           </ul>
         </div>
       </div>

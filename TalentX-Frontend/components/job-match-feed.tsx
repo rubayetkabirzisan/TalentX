@@ -25,9 +25,27 @@ export function JobMatchFeed() {
 
   useEffect(() => {
     const fetchFeed = async () => {
-      try {
-        setError(null)
-        const response = await fetch('/api/talent/feed')
+  try {
+    setError(null)
+    const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+    const headers = {
+      'x-user-id': auth.email || '',
+      'x-role': auth.role || '',
+      'x-name': auth.name || '',
+    }
+
+    // Pre-load already applied jobs
+    const appsRes = await fetch('/api/talent/applications', { headers })
+    if (appsRes.ok) {
+      const appsData = await appsRes.json()
+      const appliedIds = new Set<string>(appsData.map((a: any) => a.job_id))
+      setAppliedJobs(appliedIds)
+    }
+
+    const response = await fetch('/api/talent/feed', {
+      headers
+    })
+     
         if (!response.ok) throw new Error('Failed to fetch job feed')
         const data = await response.json()
         setJobs(data)
@@ -45,9 +63,15 @@ export function JobMatchFeed() {
   const handleApply = async (jobId: string) => {
     setIsApplying(jobId)
     try {
-      const response = await fetch(`/api/jobs/${jobId}/apply`, {
-        method: 'POST',
-      })
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch(`/api/jobs/${jobId}/apply`, {
+  method: 'POST',
+  headers: {
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
+})
 
       if (!response.ok) throw new Error('Failed to apply')
 
@@ -130,14 +154,14 @@ export function JobMatchFeed() {
           </div>
 
           <div className="mb-4 flex flex-wrap gap-2">
-            {job.technologies.slice(0, 4).map((tech) => (
+            {(job.technologies ?? job.tech_stack ?? []).slice(0, 4).map((tech) => (
               <Badge key={tech} variant="outline" className="text-xs">
                 {tech}
               </Badge>
             ))}
-            {job.technologies.length > 4 && (
+            {(job.technologies ?? job.tech_stack ?? []).length > 4 && (
               <Badge variant="outline" className="text-xs">
-                +{job.technologies.length - 4} more
+                +{(job.technologies ?? job.tech_stack ?? []).length - 4} more
               </Badge>
             )}
           </div>

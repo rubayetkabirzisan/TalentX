@@ -1,57 +1,25 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-// Mock data - replace with real database queries
-const mockApplications = [
-  {
-    id: '1',
-    company: 'Vercel',
-    jobTitle: 'Senior Frontend Engineer',
-    source: 'manual' as const,
-    appliedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    company: 'Stripe',
-    jobTitle: 'Full Stack Engineer',
-    source: 'invitation' as const,
-    appliedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    company: 'Google Cloud',
-    jobTitle: 'DevOps Engineer',
-    source: 'manual' as const,
-    appliedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    company: 'Notion',
-    jobTitle: 'Backend Engineer',
-    source: 'manual' as const,
-    appliedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '5',
-    company: 'Figma',
-    jobTitle: 'Product Designer',
-    source: 'invitation' as const,
-    appliedAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-]
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Sort by applied date descending (most recent first)
-    const sortedApplications = [...mockApplications].sort(
-      (a, b) =>
-        new Date(b.appliedAt).getTime() - new Date(a.appliedAt).getTime()
-    )
-    return NextResponse.json(sortedApplications)
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
+
+    const res = await fetch(`${BACKEND}/talent/applications`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-role': role,
+        'x-name': name,
+      },
+    })
+    const json = await res.json()
+    return NextResponse.json(json.data ?? [])
   } catch (error) {
-    console.error('[v0] Fetch applications error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch applications' },
-      { status: 500 }
-    )
+    console.error('[talent/applications] error:', error)
+    return NextResponse.json([], { status: 500 })
   }
 }

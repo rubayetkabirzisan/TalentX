@@ -3,35 +3,33 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { LogOut } from 'lucide-react'
+import { getAuth, clearAuth } from '@/lib/auth'
 
 export function DemoAuth() {
   const [auth, setAuth] = useState<{
     email: string
-    role: 'Talent' | 'Employer'
+    role: string
+    name: string
   } | null>(null)
 
   useEffect(() => {
-    const mockAuth = localStorage.getItem('mockAuth')
-    if (mockAuth) {
-      setAuth(JSON.parse(mockAuth))
-    }
+    setAuth(getAuth())
   }, [])
 
   const handleLogout = () => {
-    localStorage.removeItem('mockAuth')
+    clearAuth()
     setAuth(null)
-    window.location.reload()
+    window.location.href = '/login'
   }
 
-  if (!auth) {
-    return null
-  }
+  if (!auth) return null
 
   return (
-    <div className="fixed bottom-4 right-4 bg-card border border-border rounded-lg p-4 text-sm max-w-xs">
+    <div className="fixed bottom-4 right-4 bg-card border border-border rounded-lg p-4 text-sm max-w-xs z-50">
       <div className="mb-3">
-        <p className="font-medium text-foreground">{auth.email}</p>
-        <p className="text-xs text-muted-foreground">{auth.role}</p>
+        <p className="font-medium text-foreground">{auth.name}</p>
+        <p className="text-xs text-muted-foreground">{auth.email}</p>
+        <p className="text-xs text-muted-foreground capitalize">{auth.role}</p>
       </div>
       <Button
         size="sm"

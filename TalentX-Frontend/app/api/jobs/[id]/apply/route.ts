@@ -1,42 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
 
-    // In production, you would:
-    // 1. Verify the user is authenticated
-    // 2. Check if deadline has passed
-    // 3. Check if user has already applied
-    // 4. Save application to database
+    const res = await fetch(`${BACKEND}/talent/jobs/${id}/apply`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-role': role,
+        'x-name': name,
+      },
+      body: JSON.stringify({ source: 'manual' }),
+    })
 
-    if (!id) {
+    const json = await res.json()
+    if (!res.ok) {
       return NextResponse.json(
-        { error: 'Job ID is required' },
-        { status: 400 }
+        { error: json.error?.message || 'Failed to apply' },
+        { status: res.status }
       )
     }
-
-    // Mock application submission
-    console.log(`[v0] Application submitted for job ${id}`)
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Your application has been submitted successfully!',
-        jobId: id,
-        submittedAt: new Date().toISOString(),
-      },
-      { status: 201 }
-    )
+    return NextResponse.json(json.data, { status: 201 })
   } catch (error) {
-    console.error('[v0] Apply error:', error)
-    return NextResponse.json(
-      { error: 'Failed to submit application' },
-      { status: 500 }
-    )
+    console.error('[jobs/apply] error:', error)
+    return NextResponse.json({ error: 'Failed to apply' }, { status: 500 })
   }
 }

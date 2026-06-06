@@ -6,10 +6,10 @@ import { FileText } from 'lucide-react'
 
 interface Application {
   id: string
-  company: string
-  jobTitle: string
+  employer_name: string
+  job_title: string
   source: 'manual' | 'invitation'
-  appliedAt: string
+  created_at: string
 }
 
 const sourceConfig = {
@@ -32,7 +32,14 @@ export function ApplicationHistoryTab() {
     const fetchApplications = async () => {
       try {
         setError(null)
-        const response = await fetch('/api/talent/applications')
+        const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch('/api/talent/applications', {
+  headers: {
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
+})
         if (!response.ok) throw new Error('Failed to fetch applications')
         const data = await response.json()
         setApplications(data)
@@ -101,13 +108,13 @@ export function ApplicationHistoryTab() {
           >
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-foreground truncate">
-                {application.jobTitle}
+                {application.job_title}
               </h3>
               <p className="text-sm text-muted-foreground truncate">
-                {application.company}
+                {application.employer_name}
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                Applied {new Date(application.appliedAt).toLocaleDateString()}
+                Applied {new Date(application.created_at).toLocaleDateString()}
               </p>
             </div>
             <Badge className={`ml-4 whitespace-nowrap ${Config.className}`}>

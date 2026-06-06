@@ -1,45 +1,25 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 
-// Mock data - replace with real database queries
-const mockInvitations = [
-  {
-    id: '1',
-    company: 'Stripe',
-    jobTitle: 'Full Stack Engineer',
-    deadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Pending' as const,
-  },
-  {
-    id: '2',
-    company: 'Vercel',
-    jobTitle: 'Senior Frontend Engineer',
-    deadline: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Accepted' as const,
-  },
-  {
-    id: '3',
-    company: 'GitHub',
-    jobTitle: 'Backend Engineer',
-    deadline: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Declined' as const,
-  },
-  {
-    id: '4',
-    company: 'Notion',
-    jobTitle: 'Full Stack Developer',
-    deadline: new Date(Date.now() + 21 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Pending' as const,
-  },
-]
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    return NextResponse.json(mockInvitations)
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
+
+    const res = await fetch(`${BACKEND}/talent/invitations`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-role': role,
+        'x-name': name,
+      },
+    })
+    const json = await res.json()
+    return NextResponse.json(json.data ?? [])
   } catch (error) {
-    console.error('[v0] Fetch invitations error:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch invitations' },
-      { status: 500 }
-    )
+    console.error('[talent/invitations] error:', error)
+    return NextResponse.json([], { status: 500 })
   }
 }

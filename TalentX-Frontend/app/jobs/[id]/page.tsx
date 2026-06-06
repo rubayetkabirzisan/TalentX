@@ -152,7 +152,7 @@ export default function JobDetailPage({
             <h2 className="text-sm font-semibold text-foreground mb-4 uppercase tracking-wide">
               Tech Stack
             </h2>
-            <TechStack technologies={job.technologies} />
+            <TechStack technologies={(job.technologies ?? job.tech_stack ?? [])} />
           </div>
 
           {/* Divider */}
