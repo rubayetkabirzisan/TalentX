@@ -1,54 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Mock data - replace with real database queries and matching algorithm
-const mockMatches = {
-  '1': [
-    {
-      id: '101',
-      name: 'Sarah Chen',
-      email: 'sarah@example.com',
-      matchScore: 94,
-      invitationStatus: 'Pending',
-    },
-    {
-      id: '102',
-      name: 'James Wilson',
-      email: 'james@example.com',
-      matchScore: 87,
-      invitationStatus: 'None',
-    },
-    {
-      id: '103',
-      name: 'Emma Davis',
-      email: 'emma@example.com',
-      matchScore: 82,
-      invitationStatus: 'Accepted',
-    },
-    {
-      id: '104',
-      name: 'Michael Kumar',
-      email: 'michael@example.com',
-      matchScore: 78,
-      invitationStatus: 'None',
-    },
-  ],
-  '2': [
-    {
-      id: '201',
-      name: 'Lisa Anderson',
-      email: 'lisa@example.com',
-      matchScore: 91,
-      invitationStatus: 'None',
-    },
-    {
-      id: '202',
-      name: 'Tom Rodriguez',
-      email: 'tom@example.com',
-      matchScore: 85,
-      invitationStatus: 'Declined',
-    },
-  ],
-}
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
 export async function GET(
   request: NextRequest,
@@ -56,21 +8,93 @@ export async function GET(
 ) {
   try {
     const { id } = await params
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
 
-    // TODO: Implement real matching algorithm based on:
-    // - Job requirements
-    // - Candidate skills
-    // - Experience level
-    // - Location preferences
+    const authHeaders = {
+      'Content-Type': 'application/json',
+      'x-user-id': userId,
+      'x-role': role,
+      'x-name': name,
+    }
 
-    const matches = mockMatches[id as keyof typeof mockMatches] || []
+    // Get the job details
+    const jobRes = await fetch(`${BACKEND}/jobs/${id}`)
+    const jobJson = await jobRes.json()
+    const job = jobJson.data
 
-    return NextResponse.json(matches)
-  } catch (error) {
-    console.error('[v0] Error fetching matched talents:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch matched talents' },
-      { status: 500 }
+    if (!job) {
+      return NextResponse.json([], { status: 404 })
+    }
+
+    // Get all talent users from DB
+    const talentsRes = await fetch(`${BACKEND}/talents`, {
+      headers: authHeaders,
+    })
+
+    if (!talentsRes.ok) {
+      return NextResponse.json([], { status: 500 })
+    }
+
+    const talentsJson = await talentsRes.json()
+    const talents = talentsJson.data ?? []
+
+    // Get existing invitations for this job
+    const invRes = await fetch(`${BACKEND}/employer/jobs/${id}/invitations`, {
+      headers: authHeaders,
+    })
+    const invJson = invRes.ok ? await invRes.json() : { data: [] }
+    const invitations = invJson.data ?? []
+
+    // Score each talent against the job
+    const scored = await Promise.all(
+      talents.map(async (talent: any) => {
+        try {
+          const matchRes = await fetch(`${BACKEND}/ai/match`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              job: {
+                title: job.title,
+                tech_stack: job.tech_stack,
+                description: job.description || '',
+              },
+              talent: {
+                skills: talent.skills ?? [],
+              },
+            }),
+          })
+          const matchJson = await matchRes.json()
+          const score = matchJson.data?.score ?? 50
+
+          // Check invitation status for this talent
+          const inv = invitations.find((i: any) => i.talent_id === talent.id)
+          const invitationStatus = inv ? inv.status : 'none'
+
+          return {
+            id: talent.id,
+            name: talent.name,
+            email: talent.auth_provider_id,
+            matchScore: score,
+            invitationStatus,
+          }
+        } catch {
+          return {
+            id: talent.id,
+            name: talent.name,
+            email: talent.auth_provider_id,
+            matchScore: 50,
+            invitationStatus: 'none',
+          }
+        }
+      })
     )
+
+    scored.sort((a: any, b: any) => b.matchScore - a.matchScore)
+    return NextResponse.json(scored)
+  } catch (error) {
+    console.error('[matched-talents] error:', error)
+    return NextResponse.json([], { status: 500 })
   }
 }

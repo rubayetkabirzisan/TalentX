@@ -8,25 +8,19 @@ import { Mail, Clock, Check, X } from 'lucide-react'
 
 interface Invitation {
   id: string
-  company: string
-  jobTitle: string
-  deadline: string
-  status: 'Pending' | 'Accepted' | 'Declined'
+  employer_name: string
+  job_title: string
+  created_at: string
+  status: string
 }
 
-const statusConfig = {
-  Pending: {
-    icon: Clock,
-    className: 'bg-yellow-500/10 text-yellow-700',
-  },
-  Accepted: {
-    icon: Check,
-    className: 'bg-green-500/10 text-green-700',
-  },
-  Declined: {
-    icon: X,
-    className: 'bg-red-500/10 text-red-700',
-  },
+const statusConfig: Record<string, { icon: any; className: string }> = {
+  pending: { icon: Clock, className: 'bg-yellow-500/10 text-yellow-700' },
+  accepted: { icon: Check, className: 'bg-green-500/10 text-green-700' },
+  declined: { icon: X, className: 'bg-red-500/10 text-red-700' },
+  Pending: { icon: Clock, className: 'bg-yellow-500/10 text-yellow-700' },
+  Accepted: { icon: Check, className: 'bg-green-500/10 text-green-700' },
+  Declined: { icon: X, className: 'bg-red-500/10 text-red-700' },
 }
 
 export function InvitationsTab() {
@@ -40,7 +34,14 @@ export function InvitationsTab() {
     const fetchInvitations = async () => {
       try {
         setError(null)
-        const response = await fetch('/api/talent/invitations')
+        const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch('/api/talent/invitations', {
+  headers: {
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
+})
         if (!response.ok) throw new Error('Failed to fetch invitations')
         const data = await response.json()
         setInvitations(data)
@@ -63,11 +64,17 @@ export function InvitationsTab() {
   ) => {
     setRespondingId(invitationId)
     try {
-      const response = await fetch(`/api/invitations/${invitationId}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      })
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch(`/api/invitations/${invitationId}/respond`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
+  body: JSON.stringify({ status }),
+})
 
       if (!response.ok) throw new Error('Failed to respond to invitation')
 
@@ -149,10 +156,10 @@ export function InvitationsTab() {
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-foreground">
-                  {invitation.jobTitle}
+                  {invitation.job_title}
                 </h3>
                 <p className="text-sm text-muted-foreground mt-1">
-                  {invitation.company}
+                  {invitation.employer_name}
                 </p>
               </div>
               <Badge className={`ml-4 whitespace-nowrap ${Config.className}`}>
@@ -163,11 +170,11 @@ export function InvitationsTab() {
 
             <div className="mb-4">
               <p className="text-xs text-muted-foreground">
-                Deadline: {new Date(invitation.deadline).toLocaleDateString()}
+                Received: {new Date(invitation.created_at).toLocaleDateString()}
               </p>
             </div>
 
-            {invitation.status === 'Pending' && (
+            {(invitation.status === 'Pending' || invitation.status === 'pending') && (
               <div className="flex gap-3">
                 <Button
                   variant="default"

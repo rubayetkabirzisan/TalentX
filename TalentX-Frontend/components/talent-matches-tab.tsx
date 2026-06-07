@@ -34,9 +34,17 @@ export function TalentMatchesTab({ jobId }: TalentMatchesTabProps) {
       try {
         setError(null)
         setIsLoading(true)
-        const response = await fetch(
-          `/api/jobs/${jobId}/matched-talents`
-        )
+        const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch(
+  `/api/jobs/${jobId}/matched-talents`,
+  {
+    headers: {
+      'x-user-id': auth.email || '',
+      'x-role': auth.role || '',
+      'x-name': auth.name || '',
+    },
+  }
+)
         if (!response.ok) throw new Error('Failed to fetch matched talents')
         const data = await response.json()
         setTalents(data)
@@ -58,15 +66,20 @@ export function TalentMatchesTab({ jobId }: TalentMatchesTabProps) {
 
     setInvitingTalentId(talentId)
     try {
-      const response = await fetch(
-        `/api/jobs/${jobId}/invite`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ talentId }),
-        }
-      )
-
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch(
+  `/api/jobs/${jobId}/invite`,
+  {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-user-id': auth.email || '',
+      'x-role': auth.role || '',
+      'x-name': auth.name || '',
+    },
+    body: JSON.stringify({ talentId }),
+  }
+)
       if (!response.ok) throw new Error('Failed to send invitation')
 
       setTalents((prev) =>
@@ -150,7 +163,7 @@ export function TalentMatchesTab({ jobId }: TalentMatchesTabProps) {
               {talent.invitationStatus || 'No invitation'}
             </Badge>
 
-            {talent.invitationStatus === 'None' && (
+            {(talent.invitationStatus === 'None' || talent.invitationStatus === 'none') && (
               <Button
                 size="sm"
                 onClick={() => handleInvite(talent.id)}

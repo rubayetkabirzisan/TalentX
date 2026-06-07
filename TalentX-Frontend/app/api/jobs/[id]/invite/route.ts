@@ -1,39 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+const BACKEND = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
-    const { talentId } = await request.json()
+    const userId = request.headers.get('x-user-id') || ''
+    const role = request.headers.get('x-role') || ''
+    const name = request.headers.get('x-name') || ''
+    const body = await request.json()
 
-    if (!talentId) {
+    const res = await fetch(`${BACKEND}/employer/jobs/${id}/invite`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-user-id': userId,
+        'x-role': role,
+        'x-name': name,
+      },
+      body: JSON.stringify({ talent_id: body.talentId }),
+    })
+
+    const json = await res.json()
+
+    if (!res.ok) {
       return NextResponse.json(
-        { error: 'Talent ID is required' },
-        { status: 400 }
+        { error: json.error?.message || 'Failed to send invitation' },
+        { status: res.status }
       )
     }
 
-    // TODO: Implement real invite logic:
-    // 1. Verify employer owns this job
-    // 2. Check talent hasn't been invited already
-    // 3. Create invitation record
-    // 4. Send email to talent
-    // 5. Record invitation timestamp
-
-    console.log(`[v0] Invitation sent to talent ${talentId} for job ${id}`)
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Invitation sent successfully',
-        invitationStatus: 'Pending',
-      },
-      { status: 201 }
-    )
+    return NextResponse.json(json.data, { status: 201 })
   } catch (error) {
-    console.error('[v0] Error sending invitation:', error)
+    console.error('[jobs/invite] error:', error)
     return NextResponse.json(
       { error: 'Failed to send invitation' },
       { status: 500 }
