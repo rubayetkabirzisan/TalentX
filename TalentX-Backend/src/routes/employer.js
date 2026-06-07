@@ -129,6 +129,7 @@ router.get(
   }
 );
 
+
 // GET /employer/jobs
 router.get(
   "/jobs",
@@ -229,4 +230,26 @@ function templateJD(title, techStack) {
   ].join("\n");
 }
 
+
+// GET /employer/jobs/:id/invitations
+router.get(
+  "/jobs/:id/invitations",
+  authRequired(),
+  roleGuard("employer"),
+  async (req, res, next) => {
+    try {
+      const jobId = req.params.id
+      const sql = `
+        select id, job_id, talent_id, status, created_at
+        from invitations
+        where job_id = $1 and employer_id = $2
+        order by created_at desc;
+      `
+      const { rows } = await query(sql, [jobId, req.user.id])
+      res.json({ data: rows })
+    } catch (err) {
+      next(err)
+    }
+  }
+)
 export default router;

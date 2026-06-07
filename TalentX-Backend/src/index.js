@@ -3,7 +3,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { ZodError } from "zod";
-
+import talentsRouter from "./routes/users.js"
 import jobsRoutes from "./routes/jobs.js";
 import meRoutes from "./routes/me.js";
 import employerRoutes from "./routes/employer.js";
@@ -26,6 +26,7 @@ app.use("/me", meRoutes);
 app.use("/employer", employerRoutes);
 app.use("/talent", talentRoutes);
 app.use("/ai", aiRoutes);
+app.use("/talents", talentsRouter);
 
 // 404
 app.use((req, res) => {
