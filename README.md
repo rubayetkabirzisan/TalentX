@@ -1,33 +1,35 @@
 # TalentX
 
-TalentX is a marketplace platform for employers and data professionals. It combines a modern React/Next.js frontend with an Express backend and PostgreSQL support, and includes AI-driven routes for job and talent workflows.
+TalentX is a talent marketplace for employers and data professionals. It combines a modern Next.js frontend with an Express backend, PostgreSQL support, and AI-enhanced workflows for job descriptions and candidate matching.
 
 ## Repository Structure
 
 - `TalentX-Frontend/`
-  - Frontend application source code
-  - Built with Next.js, React 19, Tailwind CSS, and Radix UI
+  - Next.js 15 application using the App Router
+  - React 19, Tailwind CSS, Radix UI components, and reusable UI primitives
+  - Frontend entrypoint: `TalentX-Frontend/app/page.tsx`
+  - Shared UI components in `TalentX-Frontend/components/`
 - `TalentX-Backend/`
-  - Express API server
-  - PostgreSQL-backed data access with Zod validation
-  - Includes routes for jobs, talent, employer, and AI-related endpoints
-- `package.json`
-  - Primary dependency manifest for the frontend stack
-- `next.config.mjs`, `tailwind.config.ts`, `postcss.config.mjs`
-  - Frontend configuration files
+  - Express API server built with ES modules
+  - PostgreSQL integration using `pg`
+  - Request validation with `zod`
+  - Route groups for jobs, talent, employer, user profile, and AI
+- `README.md`
+  - Project overview, installation, and usage instructions
 
 ## Key Features
 
 - Employer and talent dashboards
-- Job search and application workflows
-- AI-enhanced route support under `/ai`
-- PostgreSQL database integration
-- Centralized JSON error handling in the backend
+- Job feed, search, and application workflows
+- Invitation management for talent and hiring teams
+- AI-powered backend route support under `/ai`
+- Centralized JSON error handling with consistent response structure
+- PostgreSQL-backed persistence with migration support
 
 ## Prerequisites
 
 - Node.js 18+ or newer
-- npm or pnpm
+- npm (or pnpm)
 - PostgreSQL-compatible database
 - Git
 
@@ -40,22 +42,23 @@ git clone https://github.com/rubayetkabirzisan/TalentX-AI---Data-Expert-Marketpl
 cd TalentX
 ```
 
-2. Install frontend dependencies from the repository root:
-
-```bash
-npm install
-```
-
-3. Install backend dependencies:
+2. Install backend dependencies:
 
 ```bash
 cd TalentX-Backend
 npm install
 ```
 
+3. Install frontend dependencies:
+
+```bash
+cd ../TalentX-Frontend
+npm install
+```
+
 ## Backend Configuration
 
-Create a `.env` file inside `TalentX-Backend/` with at least the following:
+Create a `.env` file inside `TalentX-Backend/` with the required values:
 
 ```env
 DATABASE_URL=postgres://user:password@host:port/database
@@ -64,7 +67,7 @@ PORT=3000
 ```
 
 - `DATABASE_URL` is required.
-- `PGSSLMODE` can be set to `disable` for local development.
+- `PGSSLMODE` can be `disable` for local development.
 - `PORT` defaults to `3000` if not provided.
 
 ## Running the Project
@@ -76,17 +79,20 @@ cd TalentX-Backend
 npm start
 ```
 
-The API server will start and listen on the configured port. A health check endpoint is available at:
+The backend listens on the configured port and exposes:
 
-```text
-GET /health
-```
+- `GET /health`
+- `/jobs`
+- `/me`
+- `/employer`
+- `/talent`
+- `/ai`
+- `/talents`
 
 ### Start the frontend
 
-From the repository root:
-
 ```bash
+cd TalentX-Frontend
 npm run dev
 ```
 
@@ -98,18 +104,14 @@ http://localhost:3000
 
 ## Database
 
-The backend includes an initial migration script at:
+The backend includes a migration script at:
 
 - `TalentX-Backend/migrations/001_init.sql`
 
-Run this script against your PostgreSQL database to create the required schema before using the app.
+Run this script against your PostgreSQL database before using the application.
 
 ## Notes
 
-- The frontend source files are located inside `TalentX-Frontend/`.
-- The backend exposes route groups under `/jobs`, `/me`, `/employer`, `/talent`, and `/ai`.
-- Validation errors are returned in a consistent JSON format via Zod.
-
-## License
-
-This project is licensed under the ISC License.
+- Frontend code lives in `TalentX-Frontend/` and uses modern Next.js app routing.
+- Backend code is located in `TalentX-Backend/src/` and uses Express middleware, Zod validation, and centralized error handling.
+- AI functionality is exposed via `/ai` routes.
