@@ -65,7 +65,7 @@ const response = await fetch('/api/ai/jd', {
       if (!response.ok) throw new Error('Failed to generate JD')
 
       const data = await response.json()
-setGeneratedJD(data.description || data.data?.description || 'fallback test')
+setGeneratedJD(data.description)
       toast({
         title: 'Success',
         description: 'Job description generated successfully',
@@ -197,7 +197,6 @@ setGeneratedJD(data.description || data.data?.description || 'fallback test')
 
       {/* Generated JD Preview */}
       {/* Debug */}
-<p style={{color: 'red', fontSize: '12px'}}>DEBUG: generatedJD = {generatedJD ? 'SET' : 'NULL'}</p>
 
 {/* Generated JD Preview */}
 {generatedJD && (
