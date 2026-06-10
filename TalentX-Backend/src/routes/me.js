@@ -57,4 +57,22 @@ router.post(
   }
 );
 
+// PUT /me/skills
+router.put("/skills", authRequired(), async (req, res, next) => {
+  try {
+    const { skills } = req.body
+    if (!Array.isArray(skills)) {
+      return res.status(400).json({ error: { message: "skills must be an array" } })
+    }
+    const sql = `
+      update users set skills = $1 where id = $2
+      returning id, name, role, skills;
+    `
+    const { rows } = await query(sql, [skills, req.user.id])
+    res.json({ data: rows[0] })
+  } catch (err) {
+    next(err)
+  }
+});
+
 export default router;

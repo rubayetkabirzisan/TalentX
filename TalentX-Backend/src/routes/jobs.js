@@ -17,60 +17,34 @@ function validate(schema) {
   };
 }
 
-// GET /jobs?search=term
-router.get(
-  "/",
-  validate(
-    z.object({
-      query: z.object({
-        search: z.string().trim().min(1).optional(),
-      }),
-      body: z.any().optional(),
-      params: z.any().optional(),
-    })
-  ),
-  async (req, res, next) => {
-    try {
-      const search = req.validated.query.search || null;
-      const term = search ? `%${search}%` : null;
-
-      const sql = `
-        select
-          j.id,
-          j.title,
-          j.tech_stack,
-          j.deadline,
-          j.created_at,
-          u.name as employer_name,
-          (
-            select count(*)::int
-            from applications a
-            where a.job_id = j.id
-          ) as "applicationCount"
-        from jobs j
-        join users u on u.id = j.employer_id
-        where
-          ($1::text is null)
-          or (
-            j.title ilike $1
-            or j.description ilike $1
-            or exists (
-              select 1
-              from unnest(j.tech_stack) t
-              where t ilike $1
-            )
-          )
-        order by j.created_at desc
-        limit 100;
-      `;
-
-      const { rows } = await query(sql, [term]);
-      res.json({ data: rows });
-    } catch (err) {
-      next(err);
-    }
+router.get("/", async (req, res, next) => {
+  try {
+    const { search } = req.query
+    const sql = `
+      select
+        j.id,
+        j.title,
+        j.tech_stack,
+        j.deadline,
+        j.description,
+        j.employer_id,
+        j.created_at,
+        u.name as employer_name,
+        count(a.id)::int as application_count
+      from jobs j
+      left join users u on u.id = j.employer_id
+      left join applications a on a.job_id = j.id
+      ${search ? `where j.title ilike $1 or j.description ilike $1` : ''}
+      group by j.id, u.name
+      order by j.created_at desc;
+    `
+    const params = search ? [`%${search}%`] : []
+    const { rows } = await query(sql, params)
+    res.json({ data: rows })
+  } catch (err) {
+    next(err)
   }
-);
+});
 
 // GET /jobs/:id
 router.get(
