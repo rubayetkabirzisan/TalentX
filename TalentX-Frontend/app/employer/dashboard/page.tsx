@@ -1,6 +1,6 @@
 'use client'
 import { DemoAuth } from '@/components/demo-auth'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MyJobsTab } from '@/components/my-jobs-tab'
 import { CreateJobTab } from '@/components/create-job-tab'
@@ -13,6 +13,17 @@ export default function EmployerDashboard() {
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('jobs')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
+
+  useEffect(() => {
+    const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+    if (!auth.id) {
+      window.location.href = '/login'
+      return
+    }
+    if (auth.role !== 'employer') {
+      window.location.href = '/talent/dashboard'
+    }
+  }, [])
 
   const handleJobCreated = () => {
     setRefreshTrigger((prev) => prev + 1)
@@ -37,11 +48,11 @@ export default function EmployerDashboard() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={(val) => {
-  if (val !== 'applicants' && val !== 'matches') {
-    setSelectedJobId(null)
-  }
-  setActiveTab(val)
-}} className="w-full">
+          if (val !== 'applicants' && val !== 'matches') {
+            setSelectedJobId(null)
+          }
+          setActiveTab(val)
+        }} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="jobs" className="flex items-center gap-2">
               <Briefcase className="h-4 w-4" />

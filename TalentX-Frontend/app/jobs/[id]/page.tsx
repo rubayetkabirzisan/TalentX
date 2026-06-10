@@ -26,12 +26,12 @@ function useAuth() {
 
   useEffect(() => {
     // In production, verify auth token from localStorage or cookies
-    const mockAuth = localStorage.getItem('mockAuth')
-    if (mockAuth) {
-      const auth = JSON.parse(mockAuth)
-      setIsLoggedIn(true)
-      setUserRole(auth.role)
-    }
+    const authData = localStorage.getItem('auth')
+if (authData) {
+  const auth = JSON.parse(authData)
+  setIsLoggedIn(true)
+  setUserRole(auth.role === 'employer' ? 'Employer' : 'Talent')
+}
   }, [])
 
   return { isLoggedIn, userRole }
@@ -67,7 +67,12 @@ export default function JobDetailPage({
         }
 
         const data = await response.json()
-        setJob(data)
+        setJob({
+  ...data,
+  company: data.employer_name ?? 'Unknown Company',
+  applicationCount: data.application_count ?? 0,
+  technologies: data.tech_stack ?? [],
+})
       } catch (err) {
         console.error('[v0] Fetch job error:', err)
         setError(err instanceof Error ? err.message : 'Failed to load job')

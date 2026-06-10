@@ -11,7 +11,17 @@ export async function GET(request: NextRequest) {
 
     const res = await fetch(url)
     const json = await res.json()
-    return NextResponse.json(json.data ?? [])
+    const jobs = json.data ?? []
+
+    // Normalize field names for frontend components
+    const normalized = jobs.map((job: any) => ({
+      ...job,
+      company: job.employer_name ?? 'Unknown Company',
+      applicationCount: job.application_count ?? 0,
+      technologies: job.tech_stack ?? [],
+    }))
+
+    return NextResponse.json(normalized)
   } catch (error) {
     console.error('[jobs] fetch error:', error)
     return NextResponse.json([], { status: 500 })

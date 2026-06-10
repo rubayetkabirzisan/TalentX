@@ -1,4 +1,5 @@
 'use client'
+import { useEffect } from 'react'
 import { DemoAuth } from '@/components/demo-auth'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { JobMatchFeed } from '@/components/job-match-feed'
@@ -6,8 +7,19 @@ import { InvitationsTab } from '@/components/invitations-tab'
 import { ApplicationHistoryTab } from '@/components/application-history-tab'
 import { Toaster } from '@/components/ui/toaster'
 import { Zap, Mail, FileText } from 'lucide-react'
-
+import { SkillsProfile } from '@/components/skills-profile'
 export default function TalentDashboard() {
+  useEffect(() => {
+    const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+    if (!auth.id) {
+      window.location.href = '/login'
+      return
+    }
+    if (auth.role !== 'talent') {
+      window.location.href = '/employer/dashboard'
+    }
+  }, [])
+
   return (
     <main className="min-h-screen bg-background">
       {/* Header */}
@@ -23,9 +35,10 @@ export default function TalentDashboard() {
           </div>
         </div>
       </div>
-
       {/* Tabs Section */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Skills Profile */}
+<SkillsProfile />
         <Tabs defaultValue="feed" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="feed" className="flex items-center gap-2">
@@ -41,7 +54,6 @@ export default function TalentDashboard() {
               <span className="hidden sm:inline">Applications</span>
             </TabsTrigger>
           </TabsList>
-
           {/* Job Match Feed Tab */}
           <TabsContent value="feed" className="mt-0">
             <div>
@@ -51,7 +63,6 @@ export default function TalentDashboard() {
               <JobMatchFeed />
             </div>
           </TabsContent>
-
           {/* Invitations Tab */}
           <TabsContent value="invitations" className="mt-0">
             <div>
@@ -61,7 +72,6 @@ export default function TalentDashboard() {
               <InvitationsTab />
             </div>
           </TabsContent>
-
           {/* Application History Tab */}
           <TabsContent value="history" className="mt-0">
             <div>
@@ -73,7 +83,6 @@ export default function TalentDashboard() {
           </TabsContent>
         </Tabs>
       </div>
-
       <DemoAuth />
       <Toaster />
     </main>

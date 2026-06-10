@@ -52,12 +52,16 @@ export function ApplyButton({
 
     setIsLoading(true)
     try {
-      const response = await fetch(`/api/jobs/${jobId}/apply`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+const response = await fetch(`/api/jobs/${jobId}/apply`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'x-user-id': auth.email || '',
+    'x-role': auth.role || '',
+    'x-name': auth.name || '',
+  },
+})
 
       if (!response.ok) {
         throw new Error('Failed to submit application')
