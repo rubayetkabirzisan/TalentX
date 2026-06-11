@@ -1,5 +1,4 @@
 'use client'
-import { DemoAuth } from '@/components/demo-auth'
 import { useState, useEffect } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MyJobsTab } from '@/components/my-jobs-tab'
@@ -98,7 +97,6 @@ export default function EmployerDashboard() {
         </Tabs>
       </div>
 
-      <DemoAuth />
       <Toaster />
     </main>
   )

@@ -7,7 +7,7 @@ import { JobSearch } from '@/components/job-search'
 import { JobCard } from '@/components/job-card'
 import { EmptyState } from '@/components/empty-state'
 import { JobListSkeleton } from '@/components/job-skeleton'
-import { ArrowLeft } from 'lucide-react'
+import { Navbar } from '@/components/navbar'
 
 interface Job {
   id: string
@@ -56,25 +56,7 @@ export default function JobsPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Navigation */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <Link href="/landing" className="flex items-center gap-2 hover:opacity-80">
-              <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm text-muted-foreground">Back</span>
-            </Link>
-            <div className="text-center flex-1">
-              <h1 className="text-lg font-semibold text-foreground">Job Listings</h1>
-            </div>
-            <div className="flex items-center gap-2">
-  <Link href="/login">
-    <Button variant="ghost" size="sm">Sign In</Button>
-  </Link>
-</div>
-          </div>
-        </div>
-      </div>
+      <Navbar />
 
       {/* Header */}
       <div className="border-b border-border bg-card">

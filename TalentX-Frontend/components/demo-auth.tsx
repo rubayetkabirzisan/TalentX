@@ -21,7 +21,10 @@ export function DemoAuth() {
     setAuth(null)
     window.location.href = '/login'
   }
-
+const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+if (pathname === '/landing' || pathname === '/login' || pathname === '/') {
+  return null
+}
   if (!auth) return null
 
   return (

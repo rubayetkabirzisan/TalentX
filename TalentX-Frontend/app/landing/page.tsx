@@ -3,29 +3,13 @@
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowRight, Briefcase, Target, TrendingUp } from 'lucide-react'
+import { Navbar } from '@/components/navbar'
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-primary" />
-              <span className="font-semibold text-foreground">JobMatch</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <Link href="/login">
-                <Button variant="ghost">Sign In</Button>
-              </Link>
-              <Link href="/jobs">
-                <Button>Browse Jobs</Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden px-4 py-20 sm:px-6 lg:px-8">
@@ -155,7 +139,7 @@ export default function LandingPage() {
                 Ready to Find Your Next Opportunity?
               </h2>
               <p className="text-muted-foreground">
-                Join thousands of tech professionals already using JobMatch to advance their careers.
+                Join thousands of tech professionals already using TalentX to advance their careers.
               </p>
             </div>
 
@@ -181,7 +165,7 @@ export default function LandingPage() {
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-6 rounded-lg bg-primary" />
-                <span className="font-semibold text-foreground">JobMatch</span>
+                <span className="font-semibold text-foreground">TalentX</span>
               </div>
               <p className="text-sm text-muted-foreground">
                 AI-powered job matching platform connecting talent with opportunity.
@@ -234,7 +218,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="mt-8 border-t border-border pt-8 text-center text-sm text-muted-foreground">
-            <p>© 2026 JobMatch. All rights reserved.</p>
+            <p>© 2026 TalentX. All rights reserved.</p>
           </div>
         </div>
       </footer>

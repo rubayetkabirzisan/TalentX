@@ -1,5 +1,4 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import {
   Table,
@@ -9,7 +8,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
 interface Job {
@@ -18,7 +16,6 @@ interface Job {
   company: string
   applicants: number
   deadline: string
-  status: 'Active' | 'Closed' | 'Filled'
 }
 
 interface MyJobsTabProps {
@@ -35,13 +32,13 @@ export function MyJobsTab({ onSelectJob }: MyJobsTabProps) {
       try {
         setError(null)
         const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-const response = await fetch('/api/employer/jobs', {
-  headers: {
-    'x-user-id': auth.email || '',
-    'x-role': auth.role || '',
-    'x-name': auth.name || '',
-  },
-})
+        const response = await fetch('/api/employer/jobs', {
+          headers: {
+            'x-user-id': auth.email || '',
+            'x-role': auth.role || '',
+            'x-name': auth.name || '',
+          },
+        })
         if (!response.ok) throw new Error('Failed to fetch jobs')
         const data = await response.json()
         setJobs(data)
@@ -52,22 +49,8 @@ const response = await fetch('/api/employer/jobs', {
         setIsLoading(false)
       }
     }
-
     fetchJobs()
   }, [])
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'Active':
-        return 'default'
-      case 'Closed':
-        return 'secondary'
-      case 'Filled':
-        return 'outline'
-      default:
-        return 'default'
-    }
-  }
 
   if (isLoading) {
     return <div className="py-8 text-center text-muted-foreground">Loading jobs...</div>
@@ -104,14 +87,14 @@ const response = await fetch('/api/employer/jobs', {
           {jobs.map((job) => (
             <TableRow key={job.id}>
               <TableCell className="font-medium">{job.title}</TableCell>
-              <TableCell>{job.applicants}</TableCell>
+              <TableCell>{job.applicant_count ?? 0}</TableCell>
               <TableCell>
                 {new Date(job.deadline).toLocaleDateString()}
               </TableCell>
               <TableCell>
-                <Badge variant={getStatusBadgeVariant(job.status)}>
-                  {job.status}
-                </Badge>
+                <span className={new Date(job.deadline) < new Date() ? 'text-destructive text-sm' : 'text-green-600 text-sm'}>
+                  {new Date(job.deadline) < new Date() ? 'Closed' : 'Active'}
+                </span>
               </TableCell>
               <TableCell className="text-right">
                 <Button
