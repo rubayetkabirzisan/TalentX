@@ -67,7 +67,11 @@ export default function JobsPage() {
             <div className="text-center flex-1">
               <h1 className="text-lg font-semibold text-foreground">Job Listings</h1>
             </div>
-            <div className="w-12" />
+            <div className="flex items-center gap-2">
+  <Link href="/login">
+    <Button variant="ghost" size="sm">Sign In</Button>
+  </Link>
+</div>
           </div>
         </div>
       </div>
