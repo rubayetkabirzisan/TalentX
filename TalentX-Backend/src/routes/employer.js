@@ -139,16 +139,19 @@ router.get(
     try {
       const sql = `
         select
-          id,
-          employer_id,
-          title,
-          tech_stack,
-          deadline,
-          description,
-          created_at
-        from jobs
-        where employer_id = $1
-        order by created_at desc;
+  j.id,
+  j.employer_id,
+  j.title,
+  j.tech_stack,
+  j.deadline,
+  j.description,
+  j.created_at,
+  count(a.id)::int as applicant_count
+from jobs j
+left join applications a on a.job_id = j.id
+where j.employer_id = $1
+group by j.id
+order by j.created_at desc;
       `;
       const { rows } = await query(sql, [req.user.id]);
       res.json({ data: rows });
