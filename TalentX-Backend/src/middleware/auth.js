@@ -27,13 +27,13 @@ if (AUTH_PROVIDER === "clerk") {
   CLERK_AUDIENCE = process.env.CLERK_AUDIENCE || undefined;
 }
 
-// Helper: build req.user consistently
 function attachUser(req, user) {
   req.user = {
     id: user.id ?? null,
     auth_provider_id: user.auth_provider_id ?? null,
     name: user.name ?? null,
     role: user.role ?? null,
+    skills: user.skills ?? [],
   };
 }
 
@@ -74,7 +74,7 @@ export function authRequired() {
           do update set
             name = coalesce(users.name, excluded.name),
             role = coalesce(users.role, excluded.role)
-          returning id, auth_provider_id, name, role;
+          returning id, auth_provider_id, name, role, skills;
         `;
         const { rows } = await query(upsertSql, [auth_provider_id, name, role]);
         attachUser(req, rows[0]);
