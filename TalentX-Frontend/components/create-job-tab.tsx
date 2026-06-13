@@ -1,11 +1,11 @@
 'use client'
 
 import React from "react"
-
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 
 interface CreateJobFormData {
@@ -20,11 +20,16 @@ interface CreateJobTabProps {
 
 export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
   const { toast } = useToast()
+
   const [formData, setFormData] = useState<CreateJobFormData>({
     title: '',
     technologies: '',
     deadline: '',
   })
+
+  // NEW: separate state for manual description
+  const [manualDescription, setManualDescription] = useState('')
+
   const [isGenerating, setIsGenerating] = useState(false)
   const [generatedJD, setGeneratedJD] = useState<string | null>(null)
 
@@ -48,14 +53,14 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
     setIsGenerating(true)
     try {
       const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-const response = await fetch('/api/ai/jd', {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'x-user-id': auth.email || '',
-    'x-role': auth.role || '',
-    'x-name': auth.name || '',
-  },
+      const response = await fetch('/api/ai/jd', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': auth.email || '',
+          'x-role': auth.role || '',
+          'x-name': auth.name || '',
+        },
         body: JSON.stringify({
           title: formData.title,
           technologies: formData.technologies.split(',').map((t) => t.trim()),
@@ -65,13 +70,17 @@ const response = await fetch('/api/ai/jd', {
       if (!response.ok) throw new Error('Failed to generate JD')
 
       const data = await response.json()
-setGeneratedJD(data.description)
+
+      // Put the AI result into manualDescription so employer can edit it
+      setGeneratedJD(data.description)
+      setManualDescription(data.description)
+
       toast({
         title: 'Success',
-        description: 'Job description generated successfully',
+        description: 'Job description generated — you can edit it below',
       })
     } catch (err) {
-      console.error('[v0] Generate JD error:', err)
+      console.error('[CreateJobTab] Generate JD error:', err)
       toast({
         title: 'Error',
         description: 'Failed to generate job description',
@@ -82,66 +91,74 @@ setGeneratedJD(data.description)
     }
   }
 
- const handleSubmit = async (e?: React.FormEvent) => {
-  e?.preventDefault()
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault()
 
-  if (!formData.title || !formData.technologies || !formData.deadline) {
-    toast({
-      title: 'Error',
-      description: 'Please fill in all fields',
-      variant: 'destructive',
-    })
-    return
+    // Step 1: Check required fields
+    if (!formData.title || !formData.technologies || !formData.deadline) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in job title, tech stack, and deadline',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Step 2: FIX — use manual description OR AI description, whichever exists
+    const description = manualDescription.trim() || generatedJD
+
+    if (!description) {
+      toast({
+        title: 'Error',
+        description: 'Please write or generate a job description',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Step 3: Post the job
+    try {
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+      const response = await fetch('/api/employer/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': auth.email || '',
+          'x-role': auth.role || '',
+          'x-name': auth.name || '',
+        },
+        body: JSON.stringify({
+          ...formData,
+          technologies: formData.technologies.split(',').map((t) => t.trim()),
+          description,   // ← now uses whichever description exists
+        }),
+      })
+
+      if (!response.ok) throw new Error('Failed to create job')
+
+      toast({
+        title: 'Success',
+        description: 'Job posted successfully',
+      })
+
+      // Reset form
+      setFormData({ title: '', technologies: '', deadline: '' })
+      setManualDescription('')
+      setGeneratedJD(null)
+      onJobCreated?.()
+    } catch (err) {
+      console.error('[CreateJobTab] Create job error:', err)
+      toast({
+        title: 'Error',
+        description: 'Failed to create job',
+        variant: 'destructive',
+      })
+    }
   }
-
-  if (!generatedJD) {
-    toast({
-      title: 'Error',
-      description: 'Please generate a job description first',
-      variant: 'destructive',
-    })
-    return
-  }
-
-  try {
-    const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-    const response = await fetch('/api/employer/jobs', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-user-id': auth.email || '',
-        'x-role': auth.role || '',
-        'x-name': auth.name || '',
-      },
-      body: JSON.stringify({
-        ...formData,
-        technologies: formData.technologies.split(',').map((t) => t.trim()),
-        description: generatedJD,
-      }),
-    })
-
-    if (!response.ok) throw new Error('Failed to create job')
-
-    toast({
-      title: 'Success',
-      description: 'Job posted successfully',
-    })
-
-    setFormData({ title: '', technologies: '', deadline: '' })
-    setGeneratedJD(null)
-    onJobCreated?.()
-  } catch (err) {
-    console.error('[v0] Create job error:', err)
-    toast({
-      title: 'Error',
-      description: 'Failed to create job',
-      variant: 'destructive',
-    })
-  }
-}
 
   return (
     <form onSubmit={handleSubmit} className="max-w-2xl space-y-6">
+
       {/* Job Title */}
       <div className="space-y-2">
         <Label htmlFor="title">Job Title</Label>
@@ -183,37 +200,44 @@ setGeneratedJD(data.description)
         />
       </div>
 
-      {/* Generate JD Button */}
-      <div>
+      {/* Generate JD Button — optional, not required */}
+      <div className="space-y-2">
         <Button
           type="button"
           variant="outline"
           onClick={handleGenerateJD}
           disabled={isGenerating || !formData.title || !formData.technologies}
         >
-          {isGenerating ? 'Generating...' : 'Generate Job Description'}
+          {isGenerating ? 'Generating...' : '✨ Generate with AI (optional)'}
         </Button>
+        <p className="text-xs text-muted-foreground">
+          Fills the description below automatically. You can edit or ignore it.
+        </p>
       </div>
 
-      {/* Generated JD Preview */}
-      {/* Debug */}
+      {/* Job Description — manual textarea, also receives AI output */}
+      <div className="space-y-2">
+        <Label htmlFor="manualDescription">
+          Job Description <span className="text-destructive">*</span>
+        </Label>
+        <Textarea
+          id="manualDescription"
+          placeholder="Describe the role, responsibilities, and requirements...&#10;&#10;You can write this manually or use the AI button above to generate a starting point."
+          value={manualDescription}
+          onChange={(e) => setManualDescription(e.target.value)}
+          rows={8}
+          className="resize-y"
+        />
+        <p className="text-xs text-muted-foreground">
+          {manualDescription.length} characters
+        </p>
+      </div>
 
-{/* Generated JD Preview */}
-{generatedJD && (
-        <div className="p-4 rounded-lg border border-border bg-card space-y-2">
-          <p className="text-sm font-medium text-foreground">
-            Generated Job Description
-          </p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line">
-            {generatedJD}
-          </p>
-        </div>
-      )}
-
-      {/* Submit Button */}
+      {/* Submit */}
       <div className="flex gap-2 pt-4">
-        <Button type="button" onClick={handleSubmit}>Post Job</Button>
+        <Button type="submit">Post Job</Button>
       </div>
+
     </form>
   )
 }
