@@ -1,3 +1,17 @@
+node_modules/
+playwright-report/
+test-results/
+e2e/.auth/employer.json
+e2e/.auth/talent.json
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Next.js
+.next/
+
 # v0 runtime files (should only exist in preview, not in git)
 __v0_runtime_loader.js
 __v0_devtools.tsx
@@ -6,6 +20,12 @@ instrumentation-client.js
 instrumentation-client.ts
 
 # Common ignores
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
 node_modules/
 .next/
 .env*.local

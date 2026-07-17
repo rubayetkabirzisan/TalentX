@@ -1,0 +1,2 @@
+# e2e auth state — contains real localStorage tokens, never commit
+*.json
