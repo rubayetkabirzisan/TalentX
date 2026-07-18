@@ -51,8 +51,15 @@ jobs:
       run: npx playwright install --with-deps chromium firefox
 
     - name: Run DB Migrations
+      working-directory: ./TalentX-Backend
+      env:
+        DATABASE_URL: postgresql://postgres:password123@localhost:5432/talentx_test
+        PGSSLMODE: disable
       run: |
-        PGPASSWORD=password123 psql -h localhost -U postgres -d talentx_test -f TalentX-Backend/migrations/001_init.sql
+        PGPASSWORD=password123 psql -h localhost -U postgres -d talentx_test -f migrations/001_init.sql
+        node src/migrate_epic2.js
+        node src/migrate_epic3.js
+        node src/migrate_realtime.js
 
     - name: Start Express Backend
       working-directory: ./TalentX-Backend
