@@ -80,7 +80,7 @@ router.put(
           name = $1, 
           salary_min = $2, 
           salary_max = $3, 
-          work_style_flags = $4
+          work_style_flags = $4::jsonb
         WHERE id = $5
         RETURNING *;
       `;

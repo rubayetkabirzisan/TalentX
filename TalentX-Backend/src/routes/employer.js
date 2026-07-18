@@ -69,7 +69,7 @@ router.post(
 
       const sql = `
         insert into jobs (employer_id, title, tech_stack, deadline, description, salary_min, salary_max, work_style_flags)
-        values ($1, $2, $3, $4, $5, $6, $7, $8)
+        values ($1, $2, $3, $4, $5, $6, $7, $8::jsonb)
         returning *;
       `;
       const { rows } = await query(sql, [
