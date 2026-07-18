@@ -63,7 +63,7 @@ const response = await fetch(
   `/api/employer/jobs/${jobId}/applicants`,
   {
     headers: {
-      'x-user-id': auth.email || auth.id || '',
+      'x-user-id': auth.id || '',
       'x-role': auth.role || '',
       'x-name': auth.name || '',
     },
@@ -111,7 +111,7 @@ const response = await fetch(
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': auth.email || auth.id || '',
+          'x-user-id': auth.id || '',
           'x-role': auth.role || '',
         },
         body: JSON.stringify({ timeslot })

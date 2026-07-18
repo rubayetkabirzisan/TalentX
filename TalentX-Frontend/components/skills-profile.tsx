@@ -45,7 +45,7 @@ export function SkillsProfile() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': auth.email || auth.id || '',
+          'x-user-id': auth.id || '',
           'x-role': auth.role || '',
           'x-name': auth.name || '',
         },

@@ -67,7 +67,7 @@ export function MessagingWidget() {
     const auth = JSON.parse(localStorage.getItem('auth') || '{}')
     return {
       'Content-Type': 'application/json',
-      'x-user-id': auth.email || auth.id || '',
+      'x-user-id': auth.id || '',
       'x-role': auth.role || '',
     }
   }

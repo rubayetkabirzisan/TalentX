@@ -46,7 +46,7 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     // Fetch initial unread count
     fetch(`${BACKEND}/notifications`, {
       headers: {
-        'x-user-id': auth.email || auth.id,
+        'x-user-id': auth.id,
         'x-role': auth.role
       }
     })

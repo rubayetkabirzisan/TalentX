@@ -61,7 +61,7 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': auth.email || auth.id || '',
+          'x-user-id': auth.id || '',
           'x-role': auth.role || '',
           'x-name': auth.name || '',
         },
@@ -127,7 +127,7 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': auth.email || auth.id || '',
+          'x-user-id': auth.id || '',
           'x-role': auth.role || '',
           'x-name': auth.name || '',
         },

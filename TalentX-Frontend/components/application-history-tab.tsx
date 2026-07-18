@@ -37,7 +37,7 @@ export function ApplicationHistoryTab() {
         const auth = JSON.parse(localStorage.getItem('auth') || '{}')
 const response = await fetch('/api/talent/applications', {
   headers: {
-    'x-user-id': auth.email || auth.id || '',
+    'x-user-id': auth.id || '',
     'x-role': auth.role || '',
     'x-name': auth.name || '',
   },

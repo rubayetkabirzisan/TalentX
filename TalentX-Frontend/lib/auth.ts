@@ -19,7 +19,7 @@ export function getAuthHeaders(): Record<string, string> {
   const auth = getAuth()
   if (!auth) return {}
   return {
-    'x-user-id': auth.email,
+    'x-user-id': auth.id,
     'x-role': auth.role,
     'x-name': auth.name,
   }

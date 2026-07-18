@@ -72,7 +72,7 @@ const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://local
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'x-user-id': auth.email || auth.id || '',
+    'x-user-id': auth.id || '',
     'x-role': auth.role || '',
     'x-name': auth.name || '',
   },
