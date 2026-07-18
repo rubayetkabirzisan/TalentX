@@ -21,6 +21,7 @@ export async function GET(
 
     // Get the job details
     const jobRes = await fetch(`${BACKEND}/jobs/${id}`)
+    if (!jobRes.ok) throw new Error('Failed to fetch job')
     const jobJson = await jobRes.json()
     const job = jobJson.data
 
@@ -47,49 +48,42 @@ export async function GET(
     const invJson = invRes.ok ? await invRes.json() : { data: [] }
     const invitations = invJson.data ?? []
 
-    // Score each talent against the job
-    const scored = await Promise.all(
-      talents.map(async (talent: any) => {
-        try {
-          const matchRes = await fetch(`${BACKEND}/ai/match`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              job: {
-                title: job.title,
-                tech_stack: job.tech_stack,
-                description: job.description || '',
-              },
-              talent: {
-                skills: talent.skills ?? [],
-              },
-            }),
-          })
-          const matchJson = await matchRes.json()
-          const score = matchJson.data?.score ?? 50
+    // Score all talents in a single bulk request
+    const matchBulkRes = await fetch(`${BACKEND}/ai/match-bulk`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        matches: talents.map((talent: any) => ({
+          job: {
+            title: job.title,
+            tech_stack: job.tech_stack,
+            description: job.description || '',
+          },
+          talent: {
+            skills: talent.skills ?? [],
+          },
+        })),
+      }),
+    })
 
-          // Check invitation status for this talent
-          const inv = invitations.find((i: any) => i.talent_id === talent.id)
-          const invitationStatus = inv ? inv.status : 'none'
+    let scores: number[] = []
+    if (matchBulkRes.ok) {
+      const matchBulkJson = await matchBulkRes.json()
+      scores = matchBulkJson.data?.scores ?? []
+    }
 
-          return {
-            id: talent.id,
-            name: talent.name,
-            email: talent.auth_provider_id,
-            matchScore: score,
-            invitationStatus,
-          }
-        } catch {
-          return {
-            id: talent.id,
-            name: talent.name,
-            email: talent.auth_provider_id,
-            matchScore: 50,
-            invitationStatus: 'none',
-          }
-        }
-      })
-    )
+    const scored = talents.map((talent: any, index: number) => {
+      const inv = invitations.find((i: any) => i.talent_id === talent.id)
+      const invitationStatus = inv ? inv.status : 'none'
+
+      return {
+        id: talent.id,
+        name: talent.name,
+        email: talent.auth_provider_id,
+        matchScore: scores[index] ?? 50,
+        invitationStatus,
+      }
+    })
 
     scored.sort((a: any, b: any) => b.matchScore - a.matchScore)
     return NextResponse.json(scored)
