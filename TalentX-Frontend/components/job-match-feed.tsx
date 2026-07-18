@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { Zap } from 'lucide-react'
+import { ApplyButton } from '@/components/apply-button'
 
 interface MatchedJob {
   id: string
@@ -29,7 +30,7 @@ export function JobMatchFeed() {
     setError(null)
     const auth = JSON.parse(localStorage.getItem('auth') || '{}')
     const headers = {
-      'x-user-id': auth.email || '',
+      'x-user-id': auth.email || auth.id || '',
       'x-role': auth.role || '',
       'x-name': auth.name || '',
     }
@@ -59,38 +60,6 @@ export function JobMatchFeed() {
 
     fetchFeed()
   }, [])
-
-  const handleApply = async (jobId: string) => {
-    setIsApplying(jobId)
-    try {
-      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-const response = await fetch(`/api/jobs/${jobId}/apply`, {
-  method: 'POST',
-  headers: {
-    'x-user-id': auth.email || '',
-    'x-role': auth.role || '',
-    'x-name': auth.name || '',
-  },
-})
-
-      if (!response.ok) throw new Error('Failed to apply')
-
-      setAppliedJobs((prev) => new Set([...prev, jobId]))
-      toast({
-        title: 'Success',
-        description: 'Application submitted successfully',
-      })
-    } catch (err) {
-      console.error('[v0] Apply error:', err)
-      toast({
-        title: 'Error',
-        description: 'Failed to submit application',
-        variant: 'destructive',
-      })
-    } finally {
-      setIsApplying(null)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -170,17 +139,20 @@ const response = await fetch(`/api/jobs/${jobId}/apply`, {
             <p className="text-xs text-muted-foreground">
               Deadline: {new Date(job.deadline).toLocaleDateString()}
             </p>
-            <Button
-              onClick={() => handleApply(job.id)}
-              disabled={appliedJobs.has(job.id) || isApplying === job.id}
-              size="sm"
-            >
-              {appliedJobs.has(job.id)
-                ? 'Applied'
-                : isApplying === job.id
-                  ? 'Applying...'
-                  : 'Apply Now'}
-            </Button>
+            <div className="w-[200px]">
+              {appliedJobs.has(job.id) ? (
+                <Button disabled size="sm" className="w-full">Applied</Button>
+              ) : (
+                <ApplyButton 
+                  jobId={job.id} 
+                  deadlinePassed={new Date(job.deadline) < new Date()}
+                  isLoggedIn={true}
+                  onSuccess={() => {
+                    setAppliedJobs((prev) => new Set([...prev, job.id]))
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
       ))}

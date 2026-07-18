@@ -12,6 +12,8 @@ interface CreateJobFormData {
   title: string
   technologies: string
   deadline: string
+  salaryMin: string
+  salaryMax: string
 }
 
 interface CreateJobTabProps {
@@ -25,9 +27,11 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
     title: '',
     technologies: '',
     deadline: '',
+    salaryMin: '',
+    salaryMax: '',
   })
 
-  // NEW: separate state for manual description
+  const [workStyle, setWorkStyle] = useState<string[]>([])
   const [manualDescription, setManualDescription] = useState('')
 
   const [isGenerating, setIsGenerating] = useState(false)
@@ -57,7 +61,7 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': auth.email || '',
+          'x-user-id': auth.email || auth.id || '',
           'x-role': auth.role || '',
           'x-name': auth.name || '',
         },
@@ -123,14 +127,17 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-user-id': auth.email || '',
+          'x-user-id': auth.email || auth.id || '',
           'x-role': auth.role || '',
           'x-name': auth.name || '',
         },
         body: JSON.stringify({
           ...formData,
           technologies: formData.technologies.split(',').map((t) => t.trim()),
-          description,   // ← now uses whichever description exists
+          description,
+          salary_min: Number(formData.salaryMin) || 0,
+          salary_max: Number(formData.salaryMax) || 0,
+          work_style_flags: workStyle
         }),
       })
 
@@ -142,7 +149,8 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
       })
 
       // Reset form
-      setFormData({ title: '', technologies: '', deadline: '' })
+      setFormData({ title: '', technologies: '', deadline: '', salaryMin: '', salaryMax: '' })
+      setWorkStyle([])
       setManualDescription('')
       setGeneratedJD(null)
       onJobCreated?.()
@@ -198,6 +206,55 @@ export function CreateJobTab({ onJobCreated }: CreateJobTabProps) {
           onChange={handleInputChange}
           required
         />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label htmlFor="salaryMin">Minimum Salary ($)</Label>
+          <Input
+            id="salaryMin"
+            name="salaryMin"
+            type="number"
+            value={formData.salaryMin}
+            onChange={handleInputChange}
+            placeholder="0"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="salaryMax">Maximum Salary ($)</Label>
+          <Input
+            id="salaryMax"
+            name="salaryMax"
+            type="number"
+            value={formData.salaryMax}
+            onChange={handleInputChange}
+            placeholder="0"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Work Style Preferences</Label>
+        <div className="flex flex-wrap gap-2">
+          {['Remote', 'Hybrid', 'On-site', 'Async', 'Fast-paced'].map(flag => (
+            <button
+              key={flag}
+              type="button"
+              onClick={() => {
+                setWorkStyle(prev => 
+                  prev.includes(flag) ? prev.filter(f => f !== flag) : [...prev, flag]
+                )
+              }}
+              className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                workStyle.includes(flag) 
+                  ? 'bg-violet-600 text-white border-violet-600' 
+                  : 'bg-transparent text-muted-foreground border-border hover:border-violet-600/50'
+              }`}
+            >
+              {flag}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Generate JD Button — optional, not required */}

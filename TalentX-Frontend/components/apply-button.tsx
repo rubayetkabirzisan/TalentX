@@ -9,6 +9,16 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/hooks/use-toast'
 import { Loader2 } from 'lucide-react'
 
@@ -17,6 +27,7 @@ interface ApplyButtonProps {
   deadlinePassed: boolean
   isLoggedIn: boolean
   userRole?: 'Talent' | 'Employer'
+  onSuccess?: () => void
 }
 
 export function ApplyButton({
@@ -24,8 +35,12 @@ export function ApplyButton({
   deadlinePassed,
   isLoggedIn,
   userRole,
+  onSuccess,
 }: ApplyButtonProps) {
   const [isLoading, setIsLoading] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
+  const [step, setStep] = useState(1)
+  const [coverLetter, setCoverLetter] = useState('')
   const router = useRouter()
   const { toast } = useToast()
 
@@ -53,14 +68,18 @@ export function ApplyButton({
     setIsLoading(true)
     try {
       const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-const response = await fetch(`/api/jobs/${jobId}/apply`, {
+const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/talent/jobs/${jobId}/apply`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'x-user-id': auth.email || '',
+    'x-user-id': auth.email || auth.id || '',
     'x-role': auth.role || '',
     'x-name': auth.name || '',
   },
+  body: JSON.stringify({
+    source: 'manual',
+    cover_letter: coverLetter
+  })
 })
 
       if (!response.ok) {
@@ -75,10 +94,16 @@ const response = await fetch(`/api/jobs/${jobId}/apply`, {
         variant: 'default',
       })
 
-      // Optional: Navigate back or show success state
-      setTimeout(() => {
-        router.push('/')
-      }, 2000)
+      setIsOpen(false)
+      setStep(1)
+      setCoverLetter('')
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        setTimeout(() => {
+          router.push('/talent/dashboard')
+        }, 1000)
+      }
     } catch (error) {
       console.error('[v0] Apply error:', error)
       toast({
@@ -110,23 +135,87 @@ const response = await fetch(`/api/jobs/${jobId}/apply`, {
     )
   }
 
+  const handleOpenChange = (open: boolean) => {
+    if (!isLoggedIn) {
+      router.push(`/login?returnUrl=/jobs/${jobId}`)
+      return
+    }
+    setIsOpen(open)
+    if (!open) {
+      setStep(1) // Reset on close
+    }
+  }
+
   return (
-    <Button
-      onClick={handleApply}
-      disabled={isLoading}
-      size="lg"
-      className="w-full"
-    >
-      {isLoading ? (
-        <>
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          Submitting...
-        </>
-      ) : isLoggedIn ? (
-        'Apply for this position'
-      ) : (
-        'Sign in to Apply'
-      )}
-    </Button>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+      <DialogTrigger asChild>
+        <Button
+          disabled={isLoading}
+          size="lg"
+          className="w-full"
+        >
+          {isLoggedIn ? 'Apply for this position' : 'Sign in to Apply'}
+        </Button>
+      </DialogTrigger>
+      
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Job Application</DialogTitle>
+          <DialogDescription>
+            Step {step} of 3
+          </DialogDescription>
+        </DialogHeader>
+        
+        {step === 1 && (
+          <div className="py-6 space-y-4">
+            <h4 className="font-semibold text-foreground">Confirm your profile</h4>
+            <p className="text-sm text-muted-foreground">
+              Your existing skills and bio will be automatically attached to this application. Make sure your profile is up to date in your dashboard settings.
+            </p>
+          </div>
+        )}
+
+        {step === 2 && (
+          <div className="py-6 space-y-4">
+            <h4 className="font-semibold text-foreground">Why are you a good fit?</h4>
+            <p className="text-sm text-muted-foreground">
+              Stand out by writing a short cover letter or introduction.
+            </p>
+            <Textarea 
+              placeholder="I have 5 years of experience in..."
+              rows={5}
+              value={coverLetter}
+              onChange={(e) => setCoverLetter(e.target.value)}
+            />
+          </div>
+        )}
+
+        {step === 3 && (
+          <div className="py-6 space-y-4 text-center">
+            <h4 className="font-semibold text-foreground">Ready to submit?</h4>
+            <p className="text-sm text-muted-foreground">
+              By clicking Submit, your profile and cover letter will be sent directly to the employer.
+            </p>
+          </div>
+        )}
+
+        <DialogFooter className="flex justify-between sm:justify-between w-full mt-4">
+          <Button variant="ghost" onClick={() => step > 1 ? setStep(step - 1) : setIsOpen(false)}>
+            {step > 1 ? 'Back' : 'Cancel'}
+          </Button>
+          
+          {step < 3 ? (
+            <Button onClick={() => setStep(step + 1)}>
+              Next Step
+            </Button>
+          ) : (
+            <Button onClick={handleApply} disabled={isLoading}>
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Submit Application
+            </Button>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

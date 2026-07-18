@@ -39,7 +39,7 @@ const response = await fetch(
   `/api/jobs/${jobId}/matched-talents`,
   {
     headers: {
-      'x-user-id': auth.email || '',
+      'x-user-id': auth.email || auth.id || '',
       'x-role': auth.role || '',
       'x-name': auth.name || '',
     },
@@ -73,7 +73,7 @@ const response = await fetch(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-user-id': auth.email || '',
+      'x-user-id': auth.email || auth.id || '',
       'x-role': auth.role || '',
       'x-name': auth.name || '',
     },

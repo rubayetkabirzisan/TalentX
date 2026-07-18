@@ -34,7 +34,7 @@ export function MyJobsTab({ onSelectJob }: MyJobsTabProps) {
         const auth = JSON.parse(localStorage.getItem('auth') || '{}')
         const response = await fetch('/api/employer/jobs', {
           headers: {
-            'x-user-id': auth.email || '',
+            'x-user-id': auth.email || auth.id || '',
             'x-role': auth.role || '',
             'x-name': auth.name || '',
           },

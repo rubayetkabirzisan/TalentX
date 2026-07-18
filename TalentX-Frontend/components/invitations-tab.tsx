@@ -37,7 +37,7 @@ export function InvitationsTab() {
         const auth = JSON.parse(localStorage.getItem('auth') || '{}')
 const response = await fetch('/api/talent/invitations', {
   headers: {
-    'x-user-id': auth.email || '',
+    'x-user-id': auth.email || auth.id || '',
     'x-role': auth.role || '',
     'x-name': auth.name || '',
   },
@@ -69,7 +69,7 @@ const response = await fetch(`/api/invitations/${invitationId}/respond`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'x-user-id': auth.email || '',
+    'x-user-id': auth.email || auth.id || '',
     'x-role': auth.role || '',
     'x-name': auth.name || '',
   },

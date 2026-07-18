@@ -32,6 +32,7 @@ export function JobSearch({ onSearch, isLoading }: JobSearchProps) {
         onChange={handleChange}
         disabled={isLoading}
         className="pl-10"
+        data-testid="job-search-input"
       />
     </div>
   )

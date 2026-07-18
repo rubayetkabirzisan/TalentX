@@ -19,18 +19,21 @@ export function JobCard({
   applicationCount,
 }: JobCardProps) {
   return (
-    <Link href={`/jobs/${id}`}>
-      <Card className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-primary/30 h-full">
+    <Link href={`/jobs/${id}`} data-testid="job-card">
+      <Card className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5 h-full">
         <div className="p-6 flex flex-col justify-between h-full">
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
+            <h3
+              className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2"
+              data-testid="job-title"
+            >
               {title}
             </h3>
-            <p className="text-sm text-muted-foreground">{company}</p>
+            <p className="text-sm text-muted-foreground" data-testid="job-company">{company}</p>
           </div>
 
           <div className="flex items-center justify-between pt-4 mt-4 border-t border-border">
-            <Badge variant="secondary" className="font-medium">
+            <Badge variant="secondary" className="font-medium" data-testid="job-application-count">
               {applicationCount}{' '}
               {applicationCount === 1 ? 'application' : 'applications'}
             </Badge>

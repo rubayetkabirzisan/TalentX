@@ -9,6 +9,8 @@ interface Application {
   employer_name: string
   job_title: string
   source: 'manual' | 'invitation'
+  status: string
+  cover_letter?: string
   created_at: string
 }
 
@@ -35,7 +37,7 @@ export function ApplicationHistoryTab() {
         const auth = JSON.parse(localStorage.getItem('auth') || '{}')
 const response = await fetch('/api/talent/applications', {
   headers: {
-    'x-user-id': auth.email || '',
+    'x-user-id': auth.email || auth.id || '',
     'x-role': auth.role || '',
     'x-name': auth.name || '',
   },
@@ -107,13 +109,26 @@ const response = await fetch('/api/talent/applications', {
             className="rounded-lg border border-border bg-card p-5 flex items-start justify-between hover:bg-muted/50 transition-colors"
           >
             <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-foreground truncate">
-                {application.job_title}
-              </h3>
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-foreground truncate">
+                  {application.job_title}
+                </h3>
+                <Badge variant={application.status === 'interviewing' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                  {application.status}
+                </Badge>
+              </div>
               <p className="text-sm text-muted-foreground truncate">
                 {application.employer_name}
               </p>
-              <p className="text-xs text-muted-foreground mt-2">
+              
+              {application.status === 'interviewing' && application.cover_letter?.includes('Interview Scheduled:') && (
+                <div className="mt-3 p-3 bg-violet-500/10 border border-violet-500/20 rounded-md text-sm text-violet-700">
+                  <span className="font-semibold">Interview Time:</span> 
+                  {application.cover_letter.split('Interview Scheduled:')[1]}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground mt-3">
                 Applied {new Date(application.created_at).toLocaleDateString()}
               </p>
             </div>
