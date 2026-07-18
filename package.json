@@ -1,0 +1,19 @@
+{
+  "name": "talentx-e2e",
+  "version": "1.0.0",
+  "description": "Playwright E2E tests for TalentX",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:security": "playwright test e2e/specs/security.spec.js",
+    "test:api": "playwright test e2e/specs/ai.spec.js e2e/specs/security.spec.js",
+    "test:report": "playwright show-report",
+    "install:browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}
