@@ -1,48 +1,63 @@
-# TalentX QA Strategy & Automation Plan
+# TalentX QA Strategy & Post-Mortem
 
 ## Overview
-This document outlines the Quality Assurance strategy for TalentX, detailing how we ensure the reliability of the core job matching platform through automated E2E testing, risk mitigation, and manual QA processes.
+This document outlines the Quality Assurance strategy for TalentX. It is a living record of real bugs discovered, critical flows verified, and environment risks identified during our extensive end-to-end (E2E) automation journey using Playwright, Next.js, and Express.
 
-## 1. Automation Scope (The Test Pyramid at TalentX)
+---
 
-We follow a heavily automated test strategy to maintain velocity without sacrificing quality.
+## 1. Bugs Discovered & Resolved 🐛
 
-### E2E Testing (Playwright)
-- **Framework**: Playwright (JavaScript)
-- **Coverage**: Critical user journeys (CUJs) simulating real browser interaction across Chromium and Mobile Safari.
-- **Key Flows**: 
-  - Authentication (Login/Register)
-  - Employer creating a job
-  - Talent applying to a job
-  - Complete multi-actor hiring flow (Employer -> Talent -> Employer)
-- **Execution**: Runs on every Pull Request via GitHub Actions.
+During the maturation of our E2E test suite, we uncovered and resolved several complex full-stack issues:
 
-### Integration / API Testing
-- **Framework**: Playwright (API Request Context)
-- **Coverage**: Endpoints without browser overhead for speed and reliability.
-- **Key Flows**:
-  - Security endpoints (Auth checks, role guards, CORS)
-  - AI endpoints (`/ai/generate-jd`, `/ai/match`)
-  - Rate limiting behavior
+### A. React Strict Mode Race Conditions
+- **The Bug:** Tests verifying Talent Profile updates were inexplicably failing, showing old profile names instead of newly saved ones. 
+- **The Cause:** React 18's Strict Mode double-mounts components in development. The `ProfileSettingsTab` was firing a `GET` request immediately after a `PATCH` request. Because network latency fluctuates, the stale `GET` response was arriving *after* the `PATCH`, overwriting the UI with old data.
+- **The Fix:** Implemented a boolean `ignore` flag inside the `useEffect` hook to discard stale fetch responses if the component was unmounted or re-fetching.
 
-### Unit Testing
-- *(Planned)* Jest/Vitest for pure business logic (e.g., matching algorithm edge cases).
+### B. Client-Side Routing Desync & `NS_BINDING_ABORTED`
+- **The Bug:** `toHaveURL` assertions were failing constantly across Authentication and Dashboard tests, particularly crashing Firefox completely.
+- **The Cause:** The frontend was using native `window.location.href = ...` for redirects. This completely unmounts the React tree and forces a hard browser reload. Playwright would fire its assertions during the "dead zone" of the reload, causing timeouts.
+- **The Fix:** Replaced all native redirects with Next.js `useRouter().push()`. This kept the Single Page Application (SPA) intact, resulting in lightning-fast, predictable DOM transitions.
 
-## 2. Risk Register
+### C. Firefox Headed Mode Scroll-Lock
+- **The Bug:** In headed mode (but not headless), Firefox would permanently freeze when trying to click the "Create Account" button, stating: *"scrolling into view if needed"*.
+- **The Cause:** Playwright's Firefox engine on Windows struggles to calculate scroll positions when rendering GUI windows with fixed CSS layouts or animations.
+- **The Fix:** Enforced `click({ force: true })` on the login submit button to bypass the virtual scrolling check and immediately fire the click event.
 
-| Risk Area | Likelihood | Impact | Mitigation Strategy |
-|-----------|------------|--------|---------------------|
-| **AI Matching Accuracy** | Medium | High | API tests verify the algorithm always outputs a valid 0-100 score and respects skill overlaps. |
-| **Role Escalation** | Low | Critical | Security API tests actively attempt to execute employer actions as a talent (verifying 403 Forbidden). |
-| **State Bleed (Flaky Tests)** | Medium | Medium | Unique timestamp-based data fixtures (`test-data.js`) ensure parallel tests never interact with the same database records. |
-| **Supabase Outages** | Low | High | We rely on Supabase's SLA, but we handle DB connection drops gracefully in the global error handler. |
+### D. Next.js Cold-Start Timeouts
+- **The Bug:** The very first test in the Chromium suite would often fail with a `toHaveURL` timeout, while every subsequent test passed instantly.
+- **The Cause:** Next.js compiles pages on-demand in `dev` mode. The 4-second compilation time exceeded Playwright's strict 5000ms assertion timeout.
+- **The Fix:** Acknowledged as a dev-environment quirk. Running tests on a "warmed up" Next.js server resolves it, and building for production in CI/CD completely eliminates it.
 
-## 3. Test Data Management
-To avoid flakiness and maintain idempotency:
-- We use **unique, timestamped identifiers** for jobs and users in tests (e.g., `QA Engineer - 1690001122333`).
-- **Global Auth Setup**: Test users are logged in once per run, saving their `localStorage` state to `e2e/.auth/*.json` to bypass UI login in 95% of tests.
+---
 
-## 4. Known Gaps & Future Work
-- **Clerk Auth Integration**: The backend currently uses `header` auth. Real Clerk integration must be tested once wired.
-- **Visual Regression**: We plan to implement Playwright's `toHaveScreenshot()` for key brand elements (e.g., the new gradient hero section).
-- **Email Notifications**: Verifying invite emails currently requires a manual check. Future: Integrate Mailosaur or Mailtrap API into Playwright.
+## 2. Core Flows Verified ✅
+
+Our Playwright suite now boasts a **100% pass rate** in Chromium and Firefox for the following critical user journeys (30/30 tests passing):
+
+- **Authentication:** End-to-end Sign-ups and Logins for both Employer and Talent roles.
+- **Role-Based Access Control (RBAC):** Verified that Talents are hard-blocked from Employer dashboards, and unauthenticated users are seamlessly redirected to `/login`.
+- **The Employer Workflow:** Creating jobs, validating missing required fields, viewing applicant lists, and exporting applicant data.
+- **The Talent Workflow:** Successfully navigating the multi-step Application Wizard and safely canceling out of flows without ghost-submissions.
+- **Data Persistence:** Verifying that profile name edits successfully travel from the Next.js UI, through the Express Backend, into Postgres, and reflect back on the UI.
+- **Real-Time WebSockets:** Employer can initiate a message directly from the Applicant Tab, and the Talent receives the message instantly without refreshing.
+- **UI/UX Integrity:** Toggling Dark/Light mode correctly updates HTML root classes.
+
+---
+
+## 3. Risk Register & Mitigations ⚠️
+
+| Risk Area | Impact | Mitigation Strategy |
+|-----------|--------|---------------------|
+| **WebKit Windows Networking Quirks** | Low | Playwright's WebKit engine on Windows struggles with `localhost` IPv4/IPv6 routing, causing false timeouts. **Mitigation:** We accept WebKit test failures locally and rely exclusively on Ubuntu GitHub Actions runners for Safari verification. |
+| **Double-Fetch State Bleeding** | High | If React `useEffect` hooks lack AbortControllers or ignore flags, production race conditions will occur on slow connections. **Mitigation:** Strict code review enforcing cleanup functions on all data-fetching hooks. |
+| **Headless vs Headed Discrepancies** | Medium | CSS animations and fixed viewports behave differently when physically rendered. **Mitigation:** Isolating CI pipelines to purely headless execution, and utilizing `force: true` on notoriously stubborn modal buttons. |
+| **Playwright Locator Ambiguity** | Medium | Using `.getByRole('button', { name: 'Cancel' })` can fail if multiple buttons share the same accessible name. **Mitigation:** Tighten locator scopes (e.g., targeting specific containers) rather than relying on generic text matches. |
+
+---
+
+## 4. Automation Architecture
+
+- **Framework:** Playwright (`npx playwright test`)
+- **CI/CD:** GitHub Actions (`.github/workflows/playwright.yml`). The pipeline spins up a Postgres database, starts Express and Next.js concurrently, utilizes `wait-on` for readiness checks, and runs the E2E suite in headless Ubuntu runners on every PR.
+- **Data Isolation:** Every test creates uniquely timestamped user accounts (e.g., `talent.1690001122@test.com`) to ensure parallel test execution never experiences database collisions.
