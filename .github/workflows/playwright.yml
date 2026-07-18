@@ -1,0 +1,85 @@
+name: CI / E2E Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password123
+          POSTGRES_DB: talentx_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install Root Dependencies (Wait-on)
+      run: npm i -g wait-on
+
+    - name: Install Backend Dependencies
+      working-directory: ./TalentX-Backend
+      run: npm ci
+
+    - name: Install Frontend Dependencies
+      working-directory: ./TalentX-Frontend
+      run: npm ci
+
+    - name: Install Playwright Browsers
+      working-directory: ./TalentX-Frontend
+      run: npx playwright install --with-deps chromium firefox
+
+    - name: Run DB Migrations
+      run: |
+        PGPASSWORD=password123 psql -h localhost -U postgres -d talentx_test -f TalentX-Backend/migrations/001_init.sql
+
+    - name: Start Express Backend
+      working-directory: ./TalentX-Backend
+      run: npm start &
+      env:
+        DATABASE_URL: postgresql://postgres:password123@localhost:5432/talentx_test
+        PORT: 3000
+
+    - name: Start Next.js Frontend
+      working-directory: ./TalentX-Frontend
+      run: npm run dev &
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:3000
+
+    - name: Wait for Servers to be Ready
+      run: wait-on http://localhost:3000/health http-get://localhost:3001 --timeout 120000
+
+    - name: Run Playwright Tests (Chromium & Firefox)
+      working-directory: ./TalentX-Frontend
+      run: npx playwright test --project=chromium --project=firefox --workers=1
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:3000
+
+    - name: Upload Playwright Report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report
+        path: TalentX-Frontend/playwright-report/
+        retention-days: 30
