@@ -60,6 +60,7 @@ jobs:
         node src/migrate_epic2.js
         node src/migrate_epic3.js
         node src/migrate_realtime.js
+        node scripts/migrate-passwords.js
 
     - name: Start Express Backend
       working-directory: ./TalentX-Backend
