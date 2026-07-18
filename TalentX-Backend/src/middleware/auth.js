@@ -42,14 +42,28 @@ export function authRequired() {
     try {
       // ✅ Mode 1: none (bypass)
       if (AUTH_PROVIDER === "none") {
-  attachUser(req, {
-    id: "00000000-0000-0000-0000-000000000001",
-    auth_provider_id: "dev-user",
-    name: "Dev User",
-    role: "employer",
-  });
-  return next();
-}
+        // Upsert the dev user into the DB so req.user.id always references
+        // a real row. Previously this only faked req.user in memory, which
+        // meant employer_id FK inserts (e.g. creating a job) failed on any
+        // fresh database (like a new CI Postgres container) where this
+        // hardcoded UUID had never actually been inserted.
+        const devUserSql = `
+          insert into users (id, auth_provider_id, name, role)
+          values ($1, $2, $3, $4)
+          on conflict (id) do update set
+            name = coalesce(users.name, excluded.name),
+            role = coalesce(users.role, excluded.role)
+          returning id, auth_provider_id, name, role, skills;
+        `;
+        const { rows } = await query(devUserSql, [
+          "00000000-0000-0000-0000-000000000001",
+          "dev-user",
+          "Dev User",
+          "employer",
+        ]);
+        attachUser(req, rows[0]);
+        return next();
+      }
 
       // ✅ Mode 2: header (fake auth)
       if (AUTH_PROVIDER === "header") {
