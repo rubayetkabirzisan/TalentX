@@ -62,9 +62,15 @@ jobs:
         PORT: 3000
         PGSSLMODE: disable
 
+    - name: Build Next.js Frontend
+      working-directory: ./TalentX-Frontend
+      run: npm run build
+      env:
+        NEXT_PUBLIC_API_URL: http://localhost:3000
+
     - name: Start Next.js Frontend
       working-directory: ./TalentX-Frontend
-      run: npm run dev &
+      run: npm start &
       env:
         NEXT_PUBLIC_API_URL: http://localhost:3000
 
