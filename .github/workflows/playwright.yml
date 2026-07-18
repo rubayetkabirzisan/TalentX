@@ -60,6 +60,7 @@ jobs:
       env:
         DATABASE_URL: postgresql://postgres:password123@localhost:5432/talentx_test
         PORT: 3000
+        PGSSLMODE: disable
 
     - name: Start Next.js Frontend
       working-directory: ./TalentX-Frontend
