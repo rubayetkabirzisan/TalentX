@@ -1,67 +1,92 @@
 # TalentX
 
-TalentX is an AI-powered job marketplace connecting top-tier tech talent with the best opportunities. It features a dual-sided platform for Employers and Job Seekers, utilizing real-time skill matching algorithms to surface the best candidates for open roles.
+TalentX is an AI-powered job marketplace connecting top-tier tech talent with the best opportunities. It features a dual-sided platform for Employers and Job Seekers, utilizing real-time skill matching algorithms to surface the best candidates for open roles, complete with real-time messaging and dark mode support.
 
 ## 🚀 Application Features
+
 ### For Employers
 - **Job Management**: Create and manage job postings with required tech stacks and deadlines.
 - **Applicant Tracking**: View incoming applications for specific roles.
 - **AI Talent Discovery**: Automatically score and rank the entire talent pool against your job requirements.
-- **Direct Invitations**: Send direct interview invitations to high-matching candidates.
+- **Direct Invitations & Messaging**: Send direct interview invitations and communicate with talents instantly via real-time WebSockets.
+
 ### For Talent (Job Seekers)
 - **AI Job Feed**: A personalized, real-time feed that scores every open job against your specific skill set.
-- **One-Click Apply**: Seamless application process for matching jobs.
+- **One-Click Apply**: Seamless application process via a dynamic 3-step wizard.
 - **Application Tracking**: Keep track of pending applications and employer invitations.
 - **Skill Profile**: Update your technical skills to instantly recalibrate your job feed matches.
 
-## 🛠 Tech Stack & Architecture
-**Frontend (`/TalentX-Frontend`)**
-- Next.js (App Router)
-- React & TypeScript
-- Tailwind CSS & shadcn/ui (Styling)
-
-**Backend (`/TalentX-Backend`)**
-- Node.js & Express
-- PostgreSQL (via `pg` and Supabase)
-- Zod (Schema Validation)
-- Built-in Rate Limiting & Stateless Authentication
-
-**Architecture Highlights**
-- **Stateless Auth**: Configured for frictionless MVP testing via headers, upgradeable to Clerk JWTs.
-- **Bulk AI Matching**: Optimized endpoints to resolve N+1 queries and handle massive job-pool scaling without rate-limit exhaustion.
+### Global Features
+- **Real-Time Messaging**: Built-in WebSocket integration for instant cross-role communication.
+- **Dynamic Theming**: Full Dark/Light mode support across all UI components.
 
 ---
 
-## 🧪 E2E Test Automation (Playwright)
+## 🛠 Tech Stack & Architecture
 
-TalentX features a robust, zero-to-one End-to-End Test Automation suite built with **Playwright (JavaScript)**. The testing framework is designed to validate complex, multi-actor workflows while maintaining lightning-fast execution times.
+**Frontend (`/TalentX-Frontend`)**
+- Next.js (App Router) & React 18
+- Tailwind CSS & shadcn/ui (Styling)
+- Socket.io-client (Real-time WebSockets)
+- Zod & React Hook Form (Validation)
+
+**Backend (`/TalentX-Backend`)**
+- Node.js & Express
+- PostgreSQL (via `pg`)
+- Socket.io (WebSocket Server)
+- Built-in Rate Limiting & Stateless Authentication
+
+**Architecture Highlights**
+- **Backend-For-Frontend (BFF)**: Next.js API routes orchestrate data between the UI and the Express backend to prevent client-side data over-fetching.
+- **State Integrity**: Strict boolean flags mitigate React 18 Strict Mode double-fetch race conditions.
+- **SPA Routing**: Optimized client-side routing via `useRouter().push()` to prevent DOM reload crashes.
+
+---
+
+## 🧪 E2E Test Automation & QA Strategy
+
+TalentX features a hyper-robust, 100% passing End-to-End Test Automation suite built with **Playwright**. The testing framework validates complex, multi-actor workflows while maintaining lightning-fast execution times. (See [QA-STRATEGY.md](./QA-STRATEGY.md) for a full post-mortem of our QA process).
 
 ### Automation Highlights
-- **Page Object Model (POM)**: The entire suite utilizes POM (e.g., `LoginPage.js`, `JobsPage.js`) to completely abstract DOM selectors (`data-testid`), drastically reducing maintenance overhead when the UI changes.
-- **Global Authentication Setup**: Uses Playwright's `globalSetup` to log in test users once via the UI, saving their session state (`storageState.json`) and injecting it into all subsequent tests to bypass repetitive logins.
-- **Multi-Actor Testing**: Seamlessly boots up multiple isolated browser contexts in a single test to simulate the critical path (e.g., Browser A creates a job as Employer, Browser B searches and applies as Talent).
-- **Test Data Management**: Uses timestamp-based fixtures to dynamically generate unique job titles and user accounts, guaranteeing deterministic execution and preventing database collisions during parallel runs.
-- **API Security Testing**: Directly leverages Playwright's `APIRequestContext` to programmatically test backend security boundaries (Rate Limiting, CORS, and RBAC `403 Forbidden` assertions).
-- **CI/CD Integration**: Fully integrated into GitHub Actions, orchestrating a Postgres service container, full-stack server bootups, and automated HTML report artifact generation for every Pull Request.
+- **100% Pass Rate**: 30/30 tests actively passing across both Chromium and Firefox.
+- **Page Object Model (POM)**: The entire suite utilizes POM (e.g., `LoginPage.js`, `TalentDashboardPage.js`) to completely abstract DOM selectors, drastically reducing maintenance overhead.
+- **Multi-Actor Testing**: Seamlessly boots up multiple isolated browser contexts in a single test to simulate real-time WebSocket messaging between an Employer browser and a Talent browser simultaneously.
+- **Test Data Management**: Uses timestamp-based fixtures to dynamically generate unique job titles and user accounts, guaranteeing deterministic execution and preventing database collisions.
+- **CI/CD Integration**: Fully integrated into GitHub Actions (`.github/workflows/playwright.yml`), orchestrating a Postgres service container, full-stack background server bootups, and automated HTML report generation for every Pull Request.
 
 ---
 
 ## ⚙️ Running Locally
+
 TalentX requires both the Next.js frontend and Express backend to be running simultaneously.
+
 ### 1. Database Setup
 Create a `.env` file in `TalentX-Backend/` with your PostgreSQL connection string:
 ```env
 DATABASE_URL=postgresql://user:password@host:port/postgres
 ```
+Load the schema into your database:
+```bash
+psql -d your_db_name -f TalentX-Backend/migrations/001_init.sql
+```
+
 ### 2. Start the Backend (Port 3000)
 ```bash
 cd TalentX-Backend
 npm install
 npm start
 ```
+
 ### 3. Start the Frontend (Port 3001)
 ```bash
 cd TalentX-Frontend
 npm install
 npm run dev
+```
+
+### 4. Run E2E Tests (Optional)
+With both servers running, execute the Playwright suite:
+```bash
+cd TalentX-Frontend
+npx playwright test --project=chromium --headed
 ```
