@@ -8,6 +8,7 @@ create table if not exists users (
   auth_provider_id text unique not null,
   name text,
   role text check (role in ('employer','talent')),
+  skills text[] not null default '{}'::text[],
   created_at timestamptz not null default now()
 );
 
