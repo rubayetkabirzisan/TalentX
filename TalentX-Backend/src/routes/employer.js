@@ -21,7 +21,8 @@ function validate(schema) {
 
 function isFutureDate(dateStr) {
   const d = new Date(dateStr);
-  return Number.isFinite(d.getTime()) && d.getTime() > Date.now();
+  const endOfDay = d.getTime() + 24 * 60 * 60 * 1000 - 1;
+  return Number.isFinite(d.getTime()) && endOfDay > Date.now();
 }
 
 // POST /employer/jobs
@@ -37,6 +38,9 @@ router.post(
         deadline: z.string().datetime(),
         description: z.string().trim().min(1).optional(),
         useAI: z.boolean().optional().default(false),
+        salary_min: z.number().min(0).optional().default(0),
+        salary_max: z.number().min(0).optional().default(0),
+        work_style_flags: z.array(z.string()).optional().default([]),
       }),
       params: z.any().optional(),
       query: z.any().optional(),
@@ -44,7 +48,7 @@ router.post(
   ),
   async (req, res, next) => {
     try {
-      const { title, tech_stack, deadline, description, useAI } = req.validated.body;
+      const { title, tech_stack, deadline, description, useAI, salary_min, salary_max, work_style_flags } = req.validated.body;
 
       if (!isFutureDate(deadline)) {
         return res.status(400).json({
@@ -64,9 +68,9 @@ router.post(
       }
 
       const sql = `
-        insert into jobs (employer_id, title, tech_stack, deadline, description)
-        values ($1, $2, $3, $4, $5)
-        returning id, employer_id, title, tech_stack, deadline, description, created_at;
+        insert into jobs (employer_id, title, tech_stack, deadline, description, salary_min, salary_max, work_style_flags)
+        values ($1, $2, $3, $4, $5, $6, $7, $8)
+        returning *;
       `;
       const { rows } = await query(sql, [
         req.user.id,
@@ -74,6 +78,9 @@ router.post(
         tech_stack,
         deadline,
         finalDescription,
+        salary_min,
+        salary_max,
+        JSON.stringify(work_style_flags)
       ]);
 
       res.status(201).json({ data: rows[0] });
@@ -112,9 +119,12 @@ router.get(
 
       const sql = `
         select
+          a.id,
           a.talent_id,
           u.name as talent_name,
           a.source,
+          a.cover_letter,
+          a.status,
           a.created_at as applied_at
         from applications a
         join users u on u.id = a.talent_id
@@ -202,10 +212,27 @@ router.post(
           [jobId, talent_id, req.user.id]
         );
 
-        return ins.rows[0];
+        const invite = ins.rows[0];
+
+        // Insert Notification
+        const notifIns = await client.query(
+          `
+          insert into notifications (user_id, type, title, body)
+          values ($1, 'invite', 'New Interview Invitation', 'An employer has invited you to interview for a job!')
+          returning *;
+          `,
+          [talent_id]
+        );
+
+        return { invite, notification: notifIns.rows[0] };
       });
 
-      res.status(201).json({ data: result });
+      // Emit WS event
+      if (req.io) {
+        req.io.to(talent_id).emit("new_notification", result.notification);
+      }
+
+      res.status(201).json({ data: result.invite });
     } catch (err) {
       next(err);
     }
@@ -255,4 +282,70 @@ router.get(
     }
   }
 )
+
+// POST /employer/jobs/:id/applicants/:appId/schedule
+router.post(
+  "/jobs/:id/applicants/:appId/schedule",
+  authRequired(),
+  roleGuard("employer"),
+  validate(
+    z.object({
+      params: z.object({ id: z.string().uuid(), appId: z.string().uuid() }),
+      body: z.object({
+        timeslot: z.string().trim().min(1)
+      })
+    })
+  ),
+  async (req, res, next) => {
+    try {
+      const jobId = req.validated.params.id;
+      const appId = req.validated.params.appId;
+      const { timeslot } = req.validated.body;
+
+      // Verify job ownership
+      const owns = await query(`select 1 from jobs where id=$1 and employer_id=$2`, [
+        jobId,
+        req.user.id,
+      ]);
+      if (owns.rowCount === 0) {
+        return res.status(403).json({ error: { message: "Not allowed" } });
+      }
+
+      // Update application status
+      const sql = `
+        UPDATE applications
+        SET status = 'interviewing',
+            cover_letter = COALESCE(cover_letter, '') || '\n\n---\nInterview Scheduled: ' || $1
+        WHERE id = $2 AND job_id = $3
+        RETURNING *;
+      `;
+      const { rows } = await query(sql, [timeslot, appId, jobId]);
+      const app = rows[0];
+
+      if (!app) {
+        return res.status(404).json({ error: { message: "Application not found" } });
+      }
+
+      // Send notification
+      const notifSql = `
+        INSERT INTO notifications (user_id, type, title, body)
+        VALUES ($1, 'interview', 'Interview Scheduled', $2)
+        RETURNING *;
+      `;
+      const notif = await query(notifSql, [
+        app.talent_id,
+        `An employer has scheduled an interview with you for ${timeslot}.`
+      ]);
+
+      if (req.io) {
+        req.io.to(app.talent_id).emit("new_notification", notif.rows[0]);
+      }
+
+      res.json({ data: app });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 export default router;

@@ -2,6 +2,9 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import http from "http";
+import { Server } from "socket.io";
+import rateLimit from "express-rate-limit";
 import { ZodError } from "zod";
 import talentsRouter from "./routes/users.js"
 import jobsRoutes from "./routes/jobs.js";
@@ -9,24 +12,80 @@ import meRoutes from "./routes/me.js";
 import employerRoutes from "./routes/employer.js";
 import talentRoutes from "./routes/talent.js";
 import aiRoutes from "./routes/ai.js";
+import statsRoutes from "./routes/stats.js";
+import authRoutes from "./routes/auth.js";
+import messagesRoutes from "./routes/messages.js";
+import notificationsRoutes from "./routes/notifications.js";
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+// ─── CORS — restrict to configured origins only ───────────────────────────────
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:3001")
+  .split(",")
+  .map((o) => o.trim());
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (server-to-server, curl, health checks)
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    },
+    credentials: true,
+  })
+);
+
 app.use(express.json({ limit: "1mb" }));
+
+// ─── WebSockets (Socket.IO) ──────────────────────────────────────────────────
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: allowedOrigins,
+    credentials: true,
+  },
+});
+
+io.on("connection", (socket) => {
+  console.log("Client connected via WebSocket:", socket.id);
+  
+  socket.on("join", (userId) => {
+    // Users join a room with their userId so we can easily emit to them
+    socket.join(userId);
+    console.log(`User ${userId} joined their personal room`);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("Client disconnected:", socket.id);
+  });
+});
+
+// Attach io to req object so routes can emit events
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
+
+// Rate limit config removed for tests
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Routes
 app.use("/jobs", jobsRoutes);
-app.use("/me", meRoutes);
+app.use("/me", meRoutes);      // onboard endpoint gets strict limit
 app.use("/employer", employerRoutes);
 app.use("/talent", talentRoutes);
-app.use("/ai", aiRoutes);
+app.use("/ai", aiRoutes);      // AI endpoints are expensive — rate-limit hard
 app.use("/talents", talentsRouter);
+app.use("/stats", statsRoutes);
+app.use("/auth", authRoutes);
+app.use("/messages", messagesRoutes);
+app.use("/notifications", notificationsRoutes);
 
 // 404
 app.use((req, res) => {
@@ -35,7 +94,9 @@ app.use((req, res) => {
   });
 });
 
-// Error handler (consistent JSON shape)
+// ─── Global Error Handler ─────────────────────────────────────────────────────
+const isProd = process.env.NODE_ENV === "production";
+
 app.use((err, req, res, next) => {
   // Zod validation
   if (err instanceof ZodError) {
@@ -55,7 +116,7 @@ app.use((err, req, res, next) => {
       error: {
         code: "CONFLICT",
         message: "Resource conflict",
-        details: err?.constraint || err?.detail || undefined,
+        details: isProd ? undefined : (err?.constraint || err?.detail || undefined),
       },
     });
   }
@@ -65,12 +126,13 @@ app.use((err, req, res, next) => {
     error: {
       code: err?.code || "INTERNAL_ERROR",
       message: err?.message || "Unexpected server error",
-      details: process.env.NODE_ENV === "production" ? undefined : String(err?.stack || err),
+      // Stack traces NEVER exposed in production
+      details: isProd ? undefined : String(err?.stack || err),
     },
   });
 });
 
 const PORT = Number(process.env.PORT || 3000);
-app.listen(PORT, () => {
-  console.log(`API listening on port ${PORT}`);
+server.listen(PORT, () => {
+  console.log(`API + WebSockets listening on port ${PORT} [env: ${process.env.NODE_ENV || "development"}]`);
 });

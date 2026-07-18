@@ -57,11 +57,17 @@ router.post(
           tech_stack: z.array(z.string().trim().min(1)).default([]),
           description: z.string().trim().min(1),
           id: z.string().uuid().optional(),
+          salary_min: z.number().optional().default(0),
+          salary_max: z.number().optional().default(0),
+          work_style_flags: z.array(z.string()).optional().default([]),
         }),
         talent: z.object({
           skills: z.array(z.string().trim().min(1)).optional().default([]),
           bio: z.string().trim().optional(),
           id: z.string().uuid().optional(),
+          salary_min: z.number().optional().default(0),
+          salary_max: z.number().optional().default(0),
+          work_style_flags: z.array(z.string()).optional().default([]),
         }),
         store: z
           .object({
@@ -106,6 +112,63 @@ router.post(
   }
 );
 
+// POST /ai/match-bulk
+router.post(
+  "/match-bulk",
+  authRequired(),
+  validate(
+    z.object({
+      body: z.object({
+        matches: z.array(
+          z.object({
+            job: z.object({
+              title: z.string().trim().min(1),
+              tech_stack: z.array(z.string().trim().min(1)).default([]),
+              description: z.string().trim().min(1).optional(),
+              id: z.string().uuid().optional(),
+              salary_min: z.number().optional().default(0),
+              salary_max: z.number().optional().default(0),
+              work_style_flags: z.array(z.string()).optional().default([]),
+            }),
+            talent: z.object({
+              skills: z.array(z.string().trim().min(1)).optional().default([]),
+              bio: z.string().trim().optional(),
+              id: z.string().uuid().optional(),
+              salary_min: z.number().optional().default(0),
+              salary_max: z.number().optional().default(0),
+              work_style_flags: z.array(z.string()).optional().default([]),
+            }),
+          })
+        ).max(1000),
+      }),
+      params: z.any().optional(),
+      query: z.any().optional(),
+    })
+  ),
+  async (req, res, next) => {
+    try {
+      const { matches } = req.validated.body;
+
+      const scores = await Promise.all(
+        matches.map(async ({ job, talent }) => {
+          if (process.env.OPENAI_API_KEY) {
+            try {
+              return await llmMatchScore(job, talent);
+            } catch {
+              return 50; // Fallback for bulk if LLM fails
+            }
+          }
+          return heuristicScore(job, talent);
+        })
+      );
+
+      res.json({ data: { scores } });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 function techStackJD(title, techStack) {
   const stack = techStack?.length ? techStack.join(", ") : "modern technologies";
   return [
@@ -137,7 +200,12 @@ function heuristicScore(job, talent) {
   for (const t of talentSet) {
     if (jobSet.has(t)) intersection += 1;
   }
-  const ratio = intersection / jobSet.size;
+  let ratio = intersection / jobSet.size;
+
+  // Penalize for extreme salary mismatch if both provided
+  if (job.salary_max > 0 && talent.salary_min > 0 && talent.salary_min > job.salary_max) {
+    ratio *= 0.5; // 50% penalty
+  }
 
   // Map ratio to 0..100 with baseline
   const score = Math.round(Math.min(100, Math.max(0, 20 + ratio * 80)));
@@ -154,12 +222,16 @@ Job:
 Title: ${job.title}
 Tech: ${(job.tech_stack || []).join(", ")}
 Description: ${job.description}
+Budget: $${job.salary_min} - $${job.salary_max}
+Culture: ${(job.work_style_flags || []).join(", ")}
 
 Talent:
 Skills: ${(talent.skills || []).join(", ")}
 Bio: ${talent.bio || ""}
+Expected Salary Min: $${talent.salary_min}
+Work Style Preferences: ${(talent.work_style_flags || []).join(", ")}
 
-Score the match (0-100).`;
+Score the match (0-100). Penalize the score if the talent's Expected Salary Min is significantly higher than the Job's Budget Max. Penalize if the Work Style Preferences completely clash (e.g. Talent wants strictly Remote, Job is On-site).`;
 
   const resp = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",

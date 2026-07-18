@@ -27,14 +27,17 @@ router.post(
   validate(
     z.object({
       params: z.object({ id: z.string().uuid() }),
-      body: z.object({ source: z.enum(["manual", "invitation"]) }),
+      body: z.object({ 
+        source: z.enum(["manual", "invitation"]),
+        cover_letter: z.string().optional()
+      }),
       query: z.any().optional(),
     })
   ),
   async (req, res, next) => {
     try {
       const jobId = req.validated.params.id;
-      const { source } = req.validated.body;
+      const { source, cover_letter } = req.validated.body;
 
       const result = await withTransaction(async (client) => {
         // Lock job row to enforce deadline check safely
@@ -50,9 +53,10 @@ router.post(
         }
         const job = jobRes.rows[0];
 
-        // Rule: deadline check (cannot apply if now() > deadline)
+        // Rule: deadline check (cannot apply if now() > end of deadline day)
         const deadline = new Date(job.deadline);
-        if (Date.now() > deadline.getTime()) {
+        const endOfDeadlineDay = deadline.getTime() + 24 * 60 * 60 * 1000 - 1;
+        if (Date.now() > endOfDeadlineDay) {
           const e = new Error("Application deadline has passed");
           e.statusCode = 400;
           e.code = "DEADLINE_PASSED";
@@ -89,15 +93,14 @@ router.post(
           // source=manual: no extra requirement
         }
 
-        // Rule: cannot apply twice (DB unique + nicer error)
         // Insert application
         const appRes = await client.query(
           `
-          insert into applications (job_id, talent_id, source)
-          values ($1, $2, $3)
-          returning id, job_id, talent_id, source, created_at;
+          insert into applications (job_id, talent_id, source, cover_letter)
+          values ($1, $2, $3, $4)
+          returning *;
           `,
-          [jobId, req.user.id, source]
+          [jobId, req.user.id, source, cover_letter || null]
         );
 
         return appRes.rows[0];
@@ -222,6 +225,8 @@ router.get(
           j.employer_id,
           u.name as employer_name,
           a.source,
+          a.status,
+          a.cover_letter,
           a.created_at
         from applications a
         join jobs j on j.id = a.job_id

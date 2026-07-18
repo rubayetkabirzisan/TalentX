@@ -57,6 +57,47 @@ router.post(
   }
 );
 
+// PUT /me/profile
+router.put(
+  "/profile",
+  authRequired(),
+  validate(
+    z.object({
+      body: z.object({
+        name: z.string().trim().min(1).max(200),
+        salary_min: z.number().min(0).optional().default(0),
+        salary_max: z.number().min(0).optional().default(0),
+        work_style_flags: z.array(z.string()).optional().default([]),
+      }),
+    })
+  ),
+  async (req, res, next) => {
+    try {
+      const { name, salary_min, salary_max, work_style_flags } = req.validated.body;
+      const sql = `
+        UPDATE users 
+        SET 
+          name = $1, 
+          salary_min = $2, 
+          salary_max = $3, 
+          work_style_flags = $4
+        WHERE id = $5
+        RETURNING *;
+      `;
+      const { rows } = await query(sql, [
+        name, 
+        salary_min, 
+        salary_max, 
+        JSON.stringify(work_style_flags), 
+        req.user.id
+      ]);
+      res.json({ data: rows[0] });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 // PUT /me/skills
 router.put("/skills", authRequired(), async (req, res, next) => {
   try {

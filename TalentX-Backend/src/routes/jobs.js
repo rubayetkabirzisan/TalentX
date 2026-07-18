@@ -34,7 +34,7 @@ router.get("/", async (req, res, next) => {
       from jobs j
       left join users u on u.id = j.employer_id
       left join applications a on a.job_id = j.id
-      ${search ? `where j.title ilike $1 or j.description ilike $1` : ''}
+      where j.deadline > NOW() ${search ? `and (j.title ilike $1 or j.description ilike $1)` : ''}
       group by j.id, u.name
       order by j.created_at desc;
     `
