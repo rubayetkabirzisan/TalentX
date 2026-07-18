@@ -6,9 +6,14 @@ create extension if not exists pgcrypto;
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
   auth_provider_id text unique not null,
+  password_hash text,
   name text,
   role text check (role in ('employer','talent')),
   skills text[] not null default '{}'::text[],
+  salary_min int default 0,
+  salary_max int default 0,
+  work_style_flags jsonb default '[]'::jsonb,
+  endorsements jsonb default '[]'::jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -20,6 +25,10 @@ create table if not exists jobs (
   tech_stack text[] not null default '{}'::text[],
   deadline timestamptz not null,
   description text not null,
+  salary_min int default 0,
+  salary_max int default 0,
+  work_style_flags jsonb default '[]'::jsonb,
+  screening_question text,
   created_at timestamptz not null default now(),
   -- Optional: protect against absurd past deadlines at DB level
   constraint jobs_deadline_reasonable check (deadline > '2000-01-01'::timestamptz)
@@ -31,6 +40,8 @@ create table if not exists applications (
   job_id uuid not null references jobs(id) on delete cascade,
   talent_id uuid not null references users(id) on delete cascade,
   source text not null check (source in ('manual','invitation')),
+  cover_letter text,
+  status varchar(50) default 'applied',
   created_at timestamptz not null default now(),
   unique(job_id, talent_id)
 );
@@ -66,6 +77,33 @@ create index if not exists idx_applications_talent_id on applications(talent_id)
 create index if not exists idx_invitations_talent_id on invitations(talent_id);
 create index if not exists idx_invitations_job_id on invitations(job_id);
 create index if not exists idx_invitations_status on invitations(status);
+
+-- MESSAGES
+create table if not exists messages (
+  id uuid primary key default gen_random_uuid(),
+  sender_id uuid not null references users(id) on delete cascade,
+  receiver_id uuid not null references users(id) on delete cascade,
+  content text not null,
+  read boolean default false,
+  created_at timestamptz default now()
+);
+create index if not exists idx_messages_sender_id on messages(sender_id);
+create index if not exists idx_messages_receiver_id on messages(receiver_id);
+create index if not exists idx_messages_created_at on messages(created_at);
+
+-- NOTIFICATIONS
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  type varchar(50) not null,
+  title varchar(255) not null,
+  body text,
+  link varchar(255),
+  read boolean default false,
+  created_at timestamptz default now()
+);
+create index if not exists idx_notifications_user_id on notifications(user_id);
+create index if not exists idx_notifications_read on notifications(read);
 
 -- Helpful for search performance (optional but recommended)
 -- Note: requires extension; keep optional if you want minimal.
