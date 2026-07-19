@@ -29,6 +29,11 @@ During the maturation of our E2E test suite, we uncovered and resolved several c
 - **The Cause:** Next.js compiles pages on-demand in `dev` mode. The 4-second compilation time exceeded Playwright's strict 5000ms assertion timeout.
 - **The Fix:** Acknowledged as a dev-environment quirk. Running tests on a "warmed up" Next.js server resolves it, and building for production in CI/CD completely eliminates it.
 
+### E. Silent Auth-Mode Fallback Locking Every User to "Employer"
+- **The Bug:** `Talent can apply to a job using the 3-step wizard` failed 100% of the time in CI, on both Chromium and Firefox, across all retries — the "Applied" confirmation button never appeared after clicking Submit.
+- **The Cause:** The CI workflow never set `AUTH_PROVIDER` when starting the Express backend, so it silently defaulted to `"none"` bypass mode. That mode attaches every request to a single hardcoded dev user and hardcodes that user's role to `"employer"` on insert. Because the upsert used `coalesce(users.role, excluded.role)`, whichever role got written on the very first authenticated request of the entire CI run stuck permanently — which was always `"employer"`. Every route gated with `roleGuard("talent")`, including the job-apply endpoint, then rejected every request for the rest of the run with a 403, regardless of which account the frontend UI showed as logged in.
+- **The Fix:** Explicitly set `AUTH_PROVIDER=header` in the backend's CI environment, so the middleware honors the `x-user-id`/`x-role` headers the frontend actually sends per-account instead of collapsing every request into one identity. Also added a startup warning in `auth.js` so a missing `AUTH_PROVIDER` is caught immediately in server logs rather than surfacing later as a confusing, deterministic-but-unexplained test failure.
+
 ---
 
 ## 2. Core Flows Verified ✅
@@ -53,6 +58,7 @@ Our Playwright suite now boasts a **100% pass rate** in Chromium and Firefox for
 | **Double-Fetch State Bleeding** | High | If React `useEffect` hooks lack AbortControllers or ignore flags, production race conditions will occur on slow connections. **Mitigation:** Strict code review enforcing cleanup functions on all data-fetching hooks. |
 | **Headless vs Headed Discrepancies** | Medium | CSS animations and fixed viewports behave differently when physically rendered. **Mitigation:** Isolating CI pipelines to purely headless execution, and utilizing `force: true` on notoriously stubborn modal buttons. |
 | **Playwright Locator Ambiguity** | Medium | Using `.getByRole('button', { name: 'Cancel' })` can fail if multiple buttons share the same accessible name. **Mitigation:** Tighten locator scopes (e.g., targeting specific containers) rather than relying on generic text matches. |
+| **Silent Environment Misconfiguration** | High | Optional environment variables (e.g. `AUTH_PROVIDER`) that default to a "safe-looking" fallback can silently change application behavior in an entire environment without any error at startup. **Mitigation:** Fail loudly — log explicit warnings (or hard-fail in non-local environments) whenever a security- or identity-relevant config value falls back to a default, rather than assuming defaults are always harmless. |
 
 ---
 
@@ -61,3 +67,4 @@ Our Playwright suite now boasts a **100% pass rate** in Chromium and Firefox for
 - **Framework:** Playwright (`npx playwright test`)
 - **CI/CD:** GitHub Actions (`.github/workflows/playwright.yml`). The pipeline spins up a Postgres database, starts Express and Next.js concurrently, utilizes `wait-on` for readiness checks, and runs the E2E suite in headless Ubuntu runners on every PR.
 - **Data Isolation:** Every test creates uniquely timestamped user accounts (e.g., `talent.1690001122@test.com`) to ensure parallel test execution never experiences database collisions.
+- **Service Health Checks:** The Postgres service container's healthcheck explicitly authenticates as the `postgres` role (`pg_isready -U postgres`) rather than relying on the container's default OS user, eliminating spurious `FATAL: role "root" does not exist` log noise during startup.

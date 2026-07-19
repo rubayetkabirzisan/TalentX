@@ -7,6 +7,15 @@ dotenv.config();
 
 const AUTH_PROVIDER = (process.env.AUTH_PROVIDER || "none").toLowerCase();
 
+if (AUTH_PROVIDER === "none") {
+  console.warn(
+    "[auth] AUTH_PROVIDER is not set — falling back to 'none' bypass mode. " +
+    "Every request will be attributed to a single hardcoded dev user, and " +
+    "any route using roleGuard() for a role other than that user's locked-in " +
+    "role will always be rejected. Set AUTH_PROVIDER=header (or =clerk) explicitly."
+  );
+}
+
 /**
  * Modes:
  * - none: bypass auth (best for local MVP speed)
