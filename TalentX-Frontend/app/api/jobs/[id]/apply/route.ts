@@ -12,6 +12,8 @@ export async function POST(
     const role = request.headers.get('x-role') || ''
     const name = request.headers.get('x-name') || ''
 
+    const reqBody = await request.json().catch(() => ({ source: 'manual' }))
+
     const res = await fetch(`${BACKEND}/talent/jobs/${id}/apply`, {
       method: 'POST',
       headers: {
@@ -20,7 +22,7 @@ export async function POST(
         'x-role': role,
         'x-name': name,
       },
-      body: JSON.stringify({ source: 'manual' }),
+      body: JSON.stringify(reqBody),
     })
 
     const json = await res.json()

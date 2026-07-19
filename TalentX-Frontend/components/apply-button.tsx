@@ -68,19 +68,19 @@ export function ApplyButton({
     setIsLoading(true)
     try {
       const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/talent/jobs/${jobId}/apply`, {
-  method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'x-user-id': auth.id || '',
-    'x-role': auth.role || '',
-    'x-name': auth.name || '',
-  },
-  body: JSON.stringify({
-    source: 'manual',
-    cover_letter: coverLetter
-  })
-})
+      const response = await fetch(`/api/jobs/${jobId}/apply`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': auth.id || '',
+          'x-role': auth.role || '',
+          'x-name': auth.name || '',
+        },
+        body: JSON.stringify({
+          source: 'manual',
+          cover_letter: coverLetter
+        })
+      })
 
       if (!response.ok) {
         throw new Error('Failed to submit application')
