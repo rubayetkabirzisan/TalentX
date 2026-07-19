@@ -69,6 +69,7 @@ jobs:
         DATABASE_URL: postgresql://postgres:password123@localhost:5432/talentx_test
         PORT: 3000
         PGSSLMODE: disable
+        AUTH_PROVIDER: header
 
     - name: Build Next.js Frontend
       working-directory: ./TalentX-Frontend

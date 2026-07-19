@@ -82,11 +82,11 @@ export function ApplyButton({
         })
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to submit application')
-      }
-
       const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit application')
+      }
 
       toast({
         title: 'Success!',
@@ -157,7 +157,7 @@ export function ApplyButton({
           {isLoggedIn ? 'Apply for this position' : 'Sign in to Apply'}
         </Button>
       </DialogTrigger>
-      
+
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Job Application</DialogTitle>
@@ -165,7 +165,7 @@ export function ApplyButton({
             Step {step} of 3
           </DialogDescription>
         </DialogHeader>
-        
+
         {step === 1 && (
           <div className="py-6 space-y-4">
             <h4 className="font-semibold text-foreground">Confirm your profile</h4>
@@ -181,7 +181,7 @@ export function ApplyButton({
             <p className="text-sm text-muted-foreground">
               Stand out by writing a short cover letter or introduction.
             </p>
-            <Textarea 
+            <Textarea
               placeholder="I have 5 years of experience in..."
               rows={5}
               value={coverLetter}
@@ -203,7 +203,7 @@ export function ApplyButton({
           <Button variant="ghost" onClick={() => step > 1 ? setStep(step - 1) : setIsOpen(false)}>
             {step > 1 ? 'Back' : 'Cancel'}
           </Button>
-          
+
           {step < 3 ? (
             <Button onClick={() => setStep(step + 1)}>
               Next Step
