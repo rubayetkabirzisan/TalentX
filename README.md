@@ -61,10 +61,13 @@ TalentX features a hyper-robust, 100% passing End-to-End Test Automation suite b
 TalentX requires both the Next.js frontend and Express backend to be running simultaneously.
 
 ### 1. Database Setup
-Create a `.env` file in `TalentX-Backend/` with your PostgreSQL connection string:
+Create a `.env` file in `TalentX-Backend/` with your PostgreSQL connection string **and an explicit `AUTH_PROVIDER`**:
 ```env
 DATABASE_URL=postgresql://user:password@host:port/postgres
+AUTH_PROVIDER=header
 ```
+> **Why `AUTH_PROVIDER` matters:** if this is left unset, the backend silently falls back to a `none` bypass mode that attributes *every* request to a single hardcoded dev user with a locked-in role. Any role-gated route (e.g. a Talent applying to a job) will then fail unpredictably regardless of which account the UI shows as logged in. Use `header` for local/demo development (matches the fake `x-user-id`/`x-role` headers the frontend sends) or `clerk` if real JWT auth is configured. See [QA-STRATEGY.md § Bugs Discovered & Resolved, Entry E](./QA-STRATEGY.md) for the full story of what happens when this is skipped.
+
 Load the schema into your database:
 ```bash
 psql -d your_db_name -f TalentX-Backend/migrations/001_init.sql
