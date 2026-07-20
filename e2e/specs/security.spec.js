@@ -123,13 +123,11 @@ test.describe('API Security', () => {
 test.describe('Frontend Route Guards', () => {
 
   test('unauthenticated access to /employer/dashboard redirects to login', async ({ page }) => {
-    await page.evaluate(() => localStorage.clear())
     await page.goto('http://localhost:3001/employer/dashboard')
     await page.waitForURL(/login|landing/, { timeout: 8_000 })
   })
 
   test('unauthenticated access to /talent/dashboard redirects to login', async ({ page }) => {
-    await page.evaluate(() => localStorage.clear())
     await page.goto('http://localhost:3001/talent/dashboard')
     await page.waitForURL(/login|landing/, { timeout: 8_000 })
   })

@@ -52,7 +52,7 @@ const io = new Server(server, {
 
 io.on("connection", (socket) => {
   console.log("Client connected via WebSocket:", socket.id);
-  
+
   socket.on("join", (userId) => {
     // Users join a room with their userId so we can easily emit to them
     socket.join(userId);
@@ -70,17 +70,43 @@ app.use((req, res, next) => {
   next();
 });
 
-// Rate limit config removed for tests
+// ─── Rate Limiting ────────────────────────────────────────────────────────
+// Was stripped out during earlier local test debugging (previously just a
+// comment here saying "removed for tests"), which meant the API had no rate
+// limiting at all — in production too, not just in tests. Scoped to specific
+// routes rather than app.use() globally, so it can't collide with the rest
+// of the E2E suite, which shares one IP with these on the CI runner.
+const rateLimitHandler = (req, res) => {
+  res.status(429).json({
+    error: { code: "RATE_LIMITED", message: "Too many requests, please try again shortly." },
+  });
+};
+
+const meLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler,
+});
+
+const aiLimiter = rateLimit({
+  windowMs: 60_000,
+  max: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler,
+});
 
 // Health
 app.get("/health", (req, res) => res.json({ ok: true }));
 
 // Routes
 app.use("/jobs", jobsRoutes);
-app.use("/me", meRoutes);      // onboard endpoint gets strict limit
+app.use("/me", meLimiter, meRoutes);      // onboard endpoint gets strict limit
 app.use("/employer", employerRoutes);
 app.use("/talent", talentRoutes);
-app.use("/ai", aiRoutes);      // AI endpoints are expensive — rate-limit hard
+app.use("/ai", aiLimiter, aiRoutes);      // AI endpoints are expensive — rate-limit hard
 app.use("/talents", talentsRouter);
 app.use("/stats", statsRoutes);
 app.use("/auth", authRoutes);
