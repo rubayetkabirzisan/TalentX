@@ -44,7 +44,7 @@ export default defineConfig({
     // ── API-only tests (no browser needed) ───────────────────────────
     {
       name: 'api',
-      testMatch: '**/specs/security.spec.js',
+      testMatch: ['**/specs/ai.spec.js', '**/specs/security.spec.js'],
     },
   ],
 
@@ -53,14 +53,20 @@ export default defineConfig({
       command: 'npm run dev',
       cwd: './TalentX-Frontend',
       url: 'http://localhost:3001',
-      reuseExistingServer: !process.env.CI,
+      // true (not !process.env.CI): our GitHub Actions workflow already starts
+      // both servers itself before invoking Playwright, so this should attach
+      // to those instead of trying to bind the same ports again. Locally, with
+      // nothing running yet, Playwright still starts a fresh server as normal —
+      // reuseExistingServer only skips the start step if something already
+      // responds at the given URL.
+      reuseExistingServer: true,
       timeout: 60_000,
     },
     {
       command: 'npm start',
       cwd: './TalentX-Backend',
       url: 'http://localhost:3000/health',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 30_000,
     },
   ],
