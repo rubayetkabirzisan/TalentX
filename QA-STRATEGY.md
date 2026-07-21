@@ -44,20 +44,33 @@ During the maturation of our E2E test suite, we uncovered and resolved several c
 - **The Cause:** Investigation before deciding whether to repair or retire this suite turned up two independent, confirmed blockers, not just staleness risk: (1) `e2e/setup/auth.setup.js` logged in with two hardcoded email addresses that are never seeded anywhere in the repo — on a fresh CI database this login fails on the very first step, so nothing depending on it could ever have passed; (2) `e2e/pages/LoginPage.js` looked for a `data-testid="signup-link"` element that no longer exists in the current frontend (renamed to `auth-toggle-link` at some point). This suite was written against an earlier version of the app and abandoned once `TalentX-Frontend/tests/` became the actively maintained suite, but was never deleted.
 - **The Fix:** Retired rather than repaired. Deleted the 10 stale spec files along with `e2e/pages/`, `e2e/setup/`, and `e2e/fixtures/` (nothing in the two files being kept depends on any of them), and trimmed the now-orphaned `setup`/`chromium`/`mobile-safari` project definitions out of the root `playwright.config.js`. `TalentX-Frontend/tests/` already covers equivalent Authentication, RBAC, and Talent/Employer workflow flows with a suite that's actually running and passing, so no real coverage was lost — only dead code that an interviewer (or a future contributor) could have stumbled into and reasonably asked "wait, does this pass?"
 
+### H. Closed the Coverage Gap Entry G Left Behind: Invitations
+- **The Bug:** Not a bug either — a follow-up gap created by Entry G. The only file that had ever tested the Invitations feature (`POST /employer/jobs/:id/invite`, `GET /talent/invitations`, `POST /talent/invitations/:id/respond`, and the `source="invitation"` path on the apply endpoint) was the legacy, never-executed suite that was just retired. Deleting it was still the right call — dead code testing nothing is worse than no test file — but it left a real feature with zero verified coverage.
+- **The Cause:** The feature itself has real business logic worth locking down: invitations can only transition `pending → accepted/declined`, only the invited talent (not just any talent) can respond, re-inviting the same talent to the same job is idempotent rather than erroring, and applying via `source="invitation"` should auto-accept the invitation as a side effect.
+- **The Fix:** Added `e2e/specs/invitations.spec.js` — 16 new API-level tests, split into standalone auth/RBAC/validation checks and two serial lifecycle fixtures (the full invite → respond flow, and the apply-via-invitation path specifically). Wired into the `api` project's `testMatch` and the `test:api` script. Confirmed passing locally: 37/37 across the full `api` project, all 16 new tests included.
+
+### I. WebKit Was Configured But Never Actually Installed or Run in CI
+- **The Bug:** Not a test failure — a documentation-accuracy issue caught while investigating Entry G. This Risk Register previously claimed (see the row below) that WebKit failures were accepted locally because "we rely exclusively on Ubuntu GitHub Actions runners for Safari verification." That was false. `TalentX-Frontend/playwright.config.js` does define a `webkit` project, but the CI workflow only ever installed and ran `chromium firefox` — WebKit was never installed, never invoked, and never verified anywhere, local or CI.
+- **The Cause:** The project definition and the CI wiring were added at different times, and nobody had actually gone back to confirm the wiring matched the intent.
+- **The Fix:** Added `webkit` to the CI browser install step and a third `--project=webkit` to the UI test run, alongside Chromium and Firefox. **Status: pending as of this writing.** This has not yet been confirmed by an actual CI run — deliberately not verifying this locally either, since Playwright's WebKit engine has known `localhost` networking quirks on Windows (the same ones this Risk Register already documented) that could produce a false result either way. The real signal is the next Ubuntu CI run, not a local Windows one.
+
 ---
 
 ## 2. Core Flows Verified ✅
 
-Our Playwright suite now boasts a **100% pass rate** across two CI-enforced projects — 30/30 UI tests in Chromium and Firefox, plus 21/21 API-level tests with no browser involved — covering the following critical user journeys and API contracts:
+Our Playwright suite now boasts a **100% pass rate** across two CI-enforced projects — 30/30 UI tests in Chromium and Firefox, plus 37/37 API-level tests with no browser involved — covering the following critical user journeys and API contracts:
 
 - **Authentication:** End-to-end Sign-ups and Logins for both Employer and Talent roles.
 - **Role-Based Access Control (RBAC):** Verified at both the UI layer (Talents hard-blocked from Employer dashboards, unauthenticated users redirected to `/login`) and the API layer directly (401/403 responses for missing auth and wrong-role requests, with no browser involved).
 - **The Employer Workflow:** Creating jobs, validating missing required fields, viewing applicant lists, and exporting applicant data.
 - **The Talent Workflow:** Successfully navigating the multi-step Application Wizard and safely canceling out of flows without ghost-submissions.
+- **The Invitations Lifecycle:** Employer invites a talent, the talent sees it with job/employer details attached, only that talent can respond, only a pending invitation can be responded to, and accepting an invitation via `POST /talent/jobs/:id/apply?source=invitation` correctly marks the invitation accepted as a side effect. Added specifically to close a gap left by retiring the legacy suite in Entry G — see Entry H.
 - **Data Persistence:** Verifying that profile name edits successfully travel from the Next.js UI, through the Express Backend, into Postgres, and reflect back on the UI.
 - **Real-Time WebSockets:** Employer can initiate a message directly from the Applicant Tab, and the Talent receives the message instantly without refreshing.
 - **API Security & Resilience:** Direct API-level coverage of auth requirements, RBAC, CORS rejection, rate limiting, input validation, and error-response hygiene (no stack traces leaked in production).
 - **UI/UX Integrity:** Toggling Dark/Light mode correctly updates HTML root classes.
+
+> **Still pending confirmation:** WebKit has been wired into CI alongside Chromium and Firefox for the UI suite (see Entry I and the Risk Register below). Not yet reflected in the 30/30 figure above — that number is Chromium + Firefox only until an actual CI run confirms WebKit too.
 
 ---
 
@@ -65,7 +78,7 @@ Our Playwright suite now boasts a **100% pass rate** across two CI-enforced proj
 
 | Risk Area | Impact | Mitigation Strategy |
 |-----------|--------|---------------------|
-| **WebKit Windows Networking Quirks** | Low | Playwright's WebKit engine on Windows struggles with `localhost` IPv4/IPv6 routing, causing false timeouts. **Mitigation:** We accept WebKit test failures locally and rely exclusively on Ubuntu GitHub Actions runners for Safari verification. |
+| **WebKit Windows Networking Quirks** | Low | Playwright's WebKit engine on Windows struggles with `localhost` IPv4/IPv6 routing, causing false timeouts. **Mitigation:** We accept WebKit test failures locally. This row previously claimed we "rely exclusively on Ubuntu GitHub Actions runners for Safari verification" — that wasn't actually true; see Entry I. Corrected by wiring `--project=webkit` into CI. Pending its first real run as of this writing. |
 | **Double-Fetch State Bleeding** | High | If React `useEffect` hooks lack AbortControllers or ignore flags, production race conditions will occur on slow connections. **Mitigation:** Strict code review enforcing cleanup functions on all data-fetching hooks. |
 | **Headless vs Headed Discrepancies** | Medium | CSS animations and fixed viewports behave differently when physically rendered. **Mitigation:** Isolating CI pipelines to purely headless execution, and utilizing `force: true` on notoriously stubborn modal buttons. |
 | **Playwright Locator Ambiguity** | Medium | Using `.getByRole('button', { name: 'Cancel' })` can fail if multiple buttons share the same accessible name. **Mitigation:** Tighten locator scopes (e.g., targeting specific containers) rather than relying on generic text matches. |
