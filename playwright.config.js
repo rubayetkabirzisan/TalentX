@@ -1,5 +1,5 @@
 // playwright.config.js
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig } from '@playwright/test'
 
 export default defineConfig({
   testDir: './e2e/specs',
@@ -20,27 +20,15 @@ export default defineConfig({
     video: 'on-first-retry',
   },
 
+  // This previously also had 'setup', 'chromium', and 'mobile-safari' projects
+  // covering a separate, earlier-generation UI suite (browser-driven specs
+  // under e2e/specs, plus e2e/pages, e2e/setup, e2e/fixtures). That suite had
+  // drifted from the current app (stale selectors, a setup step assuming
+  // pre-seeded accounts that were never actually seeded anywhere) and had
+  // never been run in CI. Retired rather than repaired, since
+  // TalentX-Frontend/tests/ already covers the same core flows with a suite
+  // that's actually maintained and passing. See QA-STRATEGY.md.
   projects: [
-    // ── Setup project: creates auth state files ─────────────────────
-    {
-      name: 'setup',
-      testMatch: '**/setup/auth.setup.js',
-    },
-
-    // ── Desktop Chrome ───────────────────────────────────────────────
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-      dependencies: ['setup'],
-    },
-
-    // ── Mobile Safari ────────────────────────────────────────────────
-    {
-      name: 'mobile-safari',
-      use: { ...devices['iPhone 14'] },
-      dependencies: ['setup'],
-    },
-
     // ── API-only tests (no browser needed) ───────────────────────────
     {
       name: 'api',

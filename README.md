@@ -48,11 +48,13 @@ TalentX is an AI-powered job marketplace connecting top-tier tech talent with th
 TalentX features a hyper-robust, 100% passing End-to-End Test Automation suite built with **Playwright**. The testing framework validates complex, multi-actor workflows while maintaining lightning-fast execution times. (See [QA-STRATEGY.md](./QA-STRATEGY.md) for a full post-mortem of our QA process).
 
 ### Automation Highlights
-- **100% Pass Rate**: 30/30 tests actively passing across both Chromium and Firefox.
+- **100% Pass Rate**: 30/30 UI tests passing across both Chromium and Firefox, plus 21/21 API-level tests with no browser involved.
+- **API-Level Testing**: A dedicated `api` Playwright project hits the Express backend directly (auth requirements, RBAC, CORS, rate limiting, input validation, error-response hygiene) with no browser overhead, catching gaps — like a rate limiter that was imported but never wired up — that UI clicks alone can't reach. See [QA-STRATEGY.md](./QA-STRATEGY.md) Entry F.
 - **Page Object Model (POM)**: The entire suite utilizes POM (e.g., `LoginPage.js`, `TalentDashboardPage.js`) to completely abstract DOM selectors, drastically reducing maintenance overhead.
 - **Multi-Actor Testing**: Seamlessly boots up multiple isolated browser contexts in a single test to simulate real-time WebSocket messaging between an Employer browser and a Talent browser simultaneously.
 - **Test Data Management**: Uses timestamp-based fixtures to dynamically generate unique job titles and user accounts, guaranteeing deterministic execution and preventing database collisions.
-- **CI/CD Integration**: Fully integrated into GitHub Actions (`.github/workflows/playwright.yml`), orchestrating a Postgres service container, full-stack background server bootups, and automated HTML report generation for every Pull Request.
+- **CI/CD Integration**: Fully integrated into GitHub Actions (`.github/workflows/playwright.yml`), orchestrating a Postgres service container, full-stack background server bootups, both the UI and API test projects, and automated HTML report generation (one artifact per project) for every Pull Request.
+- **No Unmaintained Suites**: A second, earlier-generation UI test suite (root-level `e2e/specs/`) existed alongside this one but had never actually run in CI and had drifted from the current app. It was retired rather than left in the repo — see [QA-STRATEGY.md](./QA-STRATEGY.md) Entry G. Only `e2e/specs/ai.spec.js` and `security.spec.js` remain, and they power the `api` project above.
 
 ---
 
