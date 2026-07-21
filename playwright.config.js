@@ -32,7 +32,7 @@ export default defineConfig({
     // ── API-only tests (no browser needed) ───────────────────────────
     {
       name: 'api',
-      testMatch: ['**/specs/ai.spec.js', '**/specs/security.spec.js'],
+      testMatch: ['**/specs/ai.spec.js', '**/specs/security.spec.js', '**/specs/invitations.spec.js'],
     },
   ],
 
