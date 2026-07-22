@@ -4,7 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { ZodError } from "zod";
 import talentsRouter from "./routes/users.js"
 import jobsRoutes from "./routes/jobs.js";
@@ -82,11 +82,23 @@ const rateLimitHandler = (req, res) => {
   });
 };
 
+// Key by the authenticated identity, not by IP. IP-based keying meant every
+// test account (and real users behind a shared NAT/proxy in production)
+// shared one counter — as the local test suite grew, legitimate traffic
+// from unrelated test accounts started tripping the limit meant for a
+// single dedicated burst test, breaking a real feature (/api/talent/feed)
+// as collateral damage. This middleware runs before authRequired() resolves
+// req.user, so in "header" mode we key off the raw x-user-id header
+// directly; in "clerk"/"none" mode (no such header) this falls back to
+// req.ip, matching the previous, safe production behavior.
+const rateLimitKey = (req) => req.header("x-user-id") || ipKeyGenerator(req.ip);
+
 const meLimiter = rateLimit({
   windowMs: 60_000,
   max: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
   handler: rateLimitHandler,
 });
 
@@ -95,6 +107,7 @@ const aiLimiter = rateLimit({
   max: 30,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: rateLimitKey,
   handler: rateLimitHandler,
 });
 

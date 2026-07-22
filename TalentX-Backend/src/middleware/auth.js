@@ -76,11 +76,11 @@ export function authRequired() {
 
       // ✅ Mode 2: header (fake auth)
       if (AUTH_PROVIDER === "header") {
-        const auth_provider_id = req.header("x-user-id");
+        const headerUserId = req.header("x-user-id");
         const role = req.header("x-role");
         const name = req.header("x-name") || null;
 
-        if (!auth_provider_id || !role) {
+        if (!headerUserId || !role) {
           return res.status(401).json({
             error: {
               code: "UNAUTHORIZED",
@@ -89,7 +89,29 @@ export function authRequired() {
           });
         }
 
-        // Optional: keep using DB users table (upsert) so rest of app works the same
+        // The frontend stores the database UUID (users.id) in localStorage
+        // and sends it as x-user-id. Try to find the user by their primary
+        // key first — this avoids creating a duplicate user row when the
+        // original user was registered via /auth/register (where
+        // auth_provider_id is the email, not the UUID).
+        // Only attempt the id lookup when the value is a valid UUID —
+        // test fixtures and API-only callers may send emails or opaque
+        // strings, which would cause a PostgreSQL type error on the
+        // UUID column.
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (UUID_RE.test(headerUserId)) {
+          const byId = await query(
+            `select id, auth_provider_id, name, role, skills from users where id = $1`,
+            [headerUserId]
+          );
+          if (byId.rowCount > 0) {
+            attachUser(req, byId.rows[0]);
+            return next();
+          }
+        }
+
+        // Fall back to upsert by auth_provider_id for API-only callers
+        // (e.g. test fixtures) that pass an email or opaque string.
         const upsertSql = `
           insert into users (auth_provider_id, name, role)
           values ($1, $2, $3)
@@ -99,7 +121,7 @@ export function authRequired() {
             role = coalesce(users.role, excluded.role)
           returning id, auth_provider_id, name, role, skills;
         `;
-        const { rows } = await query(upsertSql, [auth_provider_id, name, role]);
+        const { rows } = await query(upsertSql, [headerUserId, name, role]);
         attachUser(req, rows[0]);
 
         return next();

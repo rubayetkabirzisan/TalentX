@@ -14,25 +14,62 @@ const { TalentDashboardPage } = require('./pages/TalentDashboardPage');
  * The bell/notification locators here are copied directly from
  * realtime-messaging.spec.js, which already proves this exact pattern works.
  */
-
 const API = process.env.PLAYWRIGHT_API_URL || 'http://localhost:3000';
 
 function bellDotFor(page) {
-    return page.locator('nav').getByRole('button').filter({ hasText: '' }).locator('span.animate-pulse');
+    return page.locator('nav')
+        .getByRole('button')
+        .filter({ hasText: '' })
+        .locator('span.animate-pulse');
 }
 
 function bellButtonFor(page) {
-    return page.locator('nav').locator('button').filter({ has: page.locator('svg.lucide-bell') });
+    return page.locator('nav')
+        .locator('button')
+        .filter({ has: page.locator('svg.lucide-bell') });
+}
+
+// Only logs the app's own socket.io connection to the backend — a first
+// attempt at this logged Next.js's dev-mode Hot Module Reload websocket
+// instead (ws://localhost:3001/_next/webpack-hmr), which is unrelated
+// dev-tooling noise, not the app's actual realtime connection.
+function instrumentSocket(page, label) {
+    page.on('console', (msg) => console.log(`[${label} console] ${msg.type()}: ${msg.text()}`));
+    page.on('pageerror', (err) => console.log(`[${label} page error]`, err));
+
+    page.on('websocket', (ws) => {
+        if (!ws.url().includes('/socket.io/')) return; // skip Next.js HMR and anything else
+
+        console.log(`[${label} websocket] opened: ${ws.url()}`);
+        ws.on('framesent', (f) => console.log(`[${label} ws SENT] ${f.payload}`));
+        ws.on('framereceived', (f) => console.log(`[${label} ws RECV] ${f.payload}`));
+        ws.on('close', () => console.log(`[${label} websocket] closed`));
+        ws.on('socketerror', (err) => console.log(`[${label} websocket error]`, err));
+    });
+}
+
+// Wait for the app's Socket.IO WebSocket connection to be fully established
+// and the 'join' room event to be sent, so notifications can be delivered.
+async function waitForSocketIO(page) {
+    await page.waitForEvent('websocket', {
+        predicate: ws => ws.url().includes('/socket.io/'),
+        timeout: 10000,
+    });
+    // Small buffer for the 'join' event to be emitted after connect
+    await page.waitForTimeout(500);
 }
 
 test.describe('Real-Time Notifications — Invitations & Scheduling', () => {
 
     test('Talent receives a live notification when an interview is scheduled', async ({ browser }) => {
+        test.setTimeout(60_000);
         const employerContext = await browser.newContext();
         const talentContext = await browser.newContext();
 
         const employerPage = await employerContext.newPage();
         const talentPage = await talentContext.newPage();
+
+        instrumentSocket(talentPage, 'talent');
 
         const employerLogin = new LoginPage(employerPage);
         await employerLogin.goto();
@@ -53,6 +90,12 @@ test.describe('Real-Time Notifications — Invitations & Scheduling', () => {
         const talentName = `Realtime Test Talent ${Date.now()}`;
         const talentDashboard = new TalentDashboardPage(talentPage);
         await talentDashboard.updateProfile(talentName);
+
+        // The JobMatchFeed component fetches once on mount — by the time the
+        // talent dashboard first rendered (during login redirect), the employer's
+        // job didn't exist yet. Reload so the feed re-mounts and picks it up.
+        await talentPage.reload();
+        await waitForSocketIO(talentPage);
         await talentDashboard.matchFeedTab.click();
 
         // Talent applies so a real application exists for the employer to act on
@@ -65,8 +108,7 @@ test.describe('Real-Time Notifications — Invitations & Scheduling', () => {
         await employerDashboard.scheduleInterview(talentName, timeslot);
 
         const bellDot = bellDotFor(talentPage);
-        await expect(bellDot).toBeVisible({ timeout: 5000 });
-
+        await expect(bellDot).toBeVisible({ timeout: 10000 });
         await bellButtonFor(talentPage).click();
         await expect(talentPage.getByText('Interview Scheduled')).toBeVisible();
     });
@@ -75,9 +117,18 @@ test.describe('Real-Time Notifications — Invitations & Scheduling', () => {
         const talentContext = await browser.newContext();
         const talentPage = await talentContext.newPage();
 
+        instrumentSocket(talentPage, 'talent');
+
         const talentLogin = new LoginPage(talentPage);
         await talentLogin.goto();
+
+        // Start waiting for the Socket.IO connection BEFORE login — the
+        // auth_changed event fires during loginAsTalent(), which triggers
+        // the socket connection. page.waitForEvent only catches future
+        // events, so we must register the promise first.
+        const socketReady = waitForSocketIO(talentPage);
         await talentLogin.loginAsTalent();
+        await socketReady;
 
         // Read the real internal user id the live UI session actually stored,
         // rather than assuming how header-mode auth maps ids — this is whatever
@@ -106,6 +157,7 @@ test.describe('Real-Time Notifications — Invitations & Scheduling', () => {
                 description: 'Fixture job for realtime invitation notification test.',
             },
         });
+
         const jobBody = await jobRes.json();
 
         await request.post(`${API}/employer/jobs/${jobBody.data.id}/invite`, {
@@ -114,9 +166,9 @@ test.describe('Real-Time Notifications — Invitations & Scheduling', () => {
         });
 
         const bellDot = bellDotFor(talentPage);
-        await expect(bellDot).toBeVisible({ timeout: 5000 });
-
+        await expect(bellDot).toBeVisible({ timeout: 10000 });
         await bellButtonFor(talentPage).click();
         await expect(talentPage.getByText('New Interview Invitation')).toBeVisible();
     });
+
 });

@@ -24,43 +24,64 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
   const [activeChatUserId, setActiveChatUserId] = useState<string | null>(null)
 
   useEffect(() => {
-    const auth = JSON.parse(localStorage.getItem('auth') || '{}')
-    if (!auth.id) return
+    let currentSocket: Socket | null = null
 
-    const newSocket = io(BACKEND, {
-      withCredentials: true,
-      transports: ['websocket', 'polling']
-    })
+    const connect = () => {
+      const auth = JSON.parse(localStorage.getItem('auth') || '{}')
+      if (!auth.id) return
 
-    newSocket.on('connect', () => {
-      newSocket.emit('join', auth.id)
-    })
-
-    newSocket.on('new_notification', (notif: any) => {
-      setUnreadNotifications(prev => prev + 1)
-      setNotifications(prev => [notif, ...prev])
-    })
-
-    setSocket(newSocket)
-
-    // Fetch initial unread count
-    fetch(`${BACKEND}/notifications`, {
-      headers: {
-        'x-user-id': auth.id,
-        'x-role': auth.role
+      // Clean up any existing connection before creating a new one
+      if (currentSocket) {
+        currentSocket.disconnect()
+        currentSocket = null
       }
-    })
-      .then(r => r.json())
-      .then(d => {
-        if (d.data) {
-          setNotifications(d.data)
-          setUnreadNotifications(d.data.filter((n: any) => !n.read).length)
+
+      const newSocket = io(BACKEND, {
+        withCredentials: true,
+        transports: ['websocket', 'polling']
+      })
+
+      newSocket.on('connect', () => {
+        newSocket.emit('join', auth.id)
+      })
+
+      newSocket.on('new_notification', (notif: any) => {
+        setUnreadNotifications(prev => prev + 1)
+        setNotifications(prev => [notif, ...prev])
+      })
+
+      currentSocket = newSocket
+      setSocket(newSocket)
+
+      // Fetch initial unread count
+      fetch(`${BACKEND}/notifications`, {
+        headers: {
+          'x-user-id': auth.id,
+          'x-role': auth.role
         }
       })
-      .catch(console.error)
+        .then(r => r.json())
+        .then(d => {
+          if (d.data) {
+            setNotifications(d.data)
+            setUnreadNotifications(d.data.filter((n: any) => !n.read).length)
+          }
+        })
+        .catch(console.error)
+    }
+
+    // Attempt initial connection (will no-op if not logged in yet)
+    connect()
+
+    // Re-connect when auth state changes (e.g. after login navigates here)
+    const handleAuthChanged = () => connect()
+    window.addEventListener('auth_changed', handleAuthChanged)
 
     return () => {
-      newSocket.disconnect()
+      window.removeEventListener('auth_changed', handleAuthChanged)
+      if (currentSocket) {
+        currentSocket.disconnect()
+      }
     }
   }, [])
 

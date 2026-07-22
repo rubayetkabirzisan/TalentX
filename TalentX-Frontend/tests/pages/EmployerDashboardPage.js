@@ -18,12 +18,12 @@ class EmployerDashboardPage {
     await this.jobTitleInput.fill(title);
     await this.minSalaryInput.fill(minSalary);
     await this.maxSalaryInput.fill(maxSalary);
-    
+
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const dateStr = tomorrow.toISOString().split('T')[0];
     await this.page.getByLabel('Application Deadline').fill(dateStr);
-    
+
     // Fill required missing fields
     await this.page.getByLabel(/Tech Stack/).fill('React, Node.js');
     await this.page.getByLabel(/Job Description/).fill('This is a test job description for E2E tests.');
@@ -54,7 +54,7 @@ class EmployerDashboardPage {
     await this.page.getByPlaceholder('e.g. Next Tuesday at 2pm EST').fill(timeslot);
     await this.page.getByRole('button', { name: 'Confirm' }).click();
 
-    await expect(this.page.getByText('Interview scheduled!')).toBeVisible();
+    await expect(this.page.getByText('Interview scheduled!').first()).toBeVisible();
     await expect(row.getByText('Scheduled')).toBeVisible();
   }
 
