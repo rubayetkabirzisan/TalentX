@@ -9,7 +9,7 @@
     "test:headed": "playwright test --headed",
     "test:ui": "playwright test --ui",
     "test:security": "playwright test e2e/specs/security.spec.js",
-    "test:api": "playwright test e2e/specs/ai.spec.js e2e/specs/security.spec.js e2e/specs/invitations.spec.js",
+    "test:api": "playwright test e2e/specs/ai.spec.js e2e/specs/security.spec.js e2e/specs/invitations.spec.js e2e/specs/scheduling.spec.js",
     "test:report": "playwright show-report",
     "install:browsers": "playwright install --with-deps chromium"
   },
