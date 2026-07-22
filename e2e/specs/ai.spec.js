@@ -118,7 +118,7 @@ test.describe('AI — /ai/match', () => {
     ])
 
     const highBody = await highRes.json()
-    const lowBody  = await lowRes.json()
+    const lowBody = await lowRes.json()
 
     expect(highBody.data.score).toBeGreaterThan(lowBody.data.score)
   })
@@ -132,5 +132,64 @@ test.describe('AI — /ai/match', () => {
       },
     })
     expect(res.status()).toBe(401)
+  })
+})
+
+// Added after auditing route coverage: this endpoint powers both the talent
+// job feed (app/api/talent/feed/route.ts) and the employer matched-talents
+// view (app/api/jobs/[id]/matched-talents/route.ts) — it runs on essentially
+// every dashboard load for both roles, and had zero test coverage despite
+// being real, load-bearing logic, not a peripheral endpoint.
+test.describe('AI — /ai/match-bulk', () => {
+
+  test('requires authentication', async ({ request }) => {
+    const res = await request.post(`${API}/ai/match-bulk`, {
+      headers: { 'Content-Type': 'application/json' },
+      data: { matches: [] },
+    })
+    expect(res.status()).toBe(401)
+  })
+
+  test('rejects a request missing the matches field', async ({ request }) => {
+    const res = await request.post(`${API}/ai/match-bulk`, {
+      headers: AUTH_HEADERS,
+      data: {},
+    })
+    expect(res.status()).toBe(400)
+  })
+
+  test('handles an empty matches array', async ({ request }) => {
+    const res = await request.post(`${API}/ai/match-bulk`, {
+      headers: AUTH_HEADERS,
+      data: { matches: [] },
+    })
+    expect(res.status()).toBe(200)
+    const body = await res.json()
+    expect(Array.isArray(body.data.scores)).toBe(true)
+    expect(body.data.scores.length).toBe(0)
+  })
+
+  test('returns one score per match, in the same order as the input', async ({ request }) => {
+    const res = await request.post(`${API}/ai/match-bulk`, {
+      headers: AUTH_HEADERS,
+      data: {
+        matches: [
+          {
+            job: { title: 'Go Engineer', tech_stack: ['Go', 'Docker'], description: 'Backend.' },
+            talent: { skills: ['Go', 'Docker'] }, // high overlap — index 0
+          },
+          {
+            job: { title: 'Go Engineer', tech_stack: ['Go', 'Docker'], description: 'Backend.' },
+            talent: { skills: ['PHP', 'jQuery'] }, // zero overlap — index 1
+          },
+        ],
+      },
+    })
+    expect(res.status()).toBe(200)
+    const body = await res.json()
+    expect(body.data.scores.length).toBe(2)
+    // Order must be preserved — this is what both consuming UIs rely on to
+    // map scores back to the correct talent/job by array index.
+    expect(body.data.scores[0]).toBeGreaterThan(body.data.scores[1])
   })
 })

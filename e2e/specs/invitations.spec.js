@@ -161,6 +161,16 @@ test.describe.serial('Invitations — Full Lifecycle', () => {
         expect(found.status).toBe('pending')
     })
 
+    test('the employer sees it in GET /employer/jobs/:id/invitations', async ({ request }) => {
+        const res = await request.get(`${API}/employer/jobs/${jobId}/invitations`, { headers: employerHeaders })
+        expect(res.status()).toBe(200)
+        const body = await res.json()
+        const found = body.data.find((i) => i.id === invitationId)
+        expect(found).toBeTruthy()
+        expect(found.talent_id).toBe(talentId)
+        expect(found.status).toBe('pending')
+    })
+
     test('a different talent cannot respond to this invitation', async ({ request }) => {
         const res = await request.post(`${API}/talent/invitations/${invitationId}/respond`, {
             headers: strangerHeaders,

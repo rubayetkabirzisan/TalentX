@@ -99,6 +99,27 @@ test.describe('API Security', () => {
     expect([400, 404]).toContain(res.status())
   })
 
+  // Added after auditing route coverage: job postings have a hard deadline
+  // (the product promise being "applications close after this date"), and
+  // creation-time enforcement had zero coverage.
+  test('job creation rejects a deadline in the past', async ({ request }) => {
+    const employerHeaders = {
+      'x-user-id': `deadline-employer.${Date.now()}@security-test.com`,
+      'x-role': 'employer',
+      'Content-Type': 'application/json',
+    }
+    const res = await request.post(`${API}/employer/jobs`, {
+      headers: employerHeaders,
+      data: {
+        title: 'Past Deadline Test Role',
+        tech_stack: [],
+        deadline: new Date(Date.now() - 86_400_000).toISOString(), // yesterday
+        description: 'Should be rejected.',
+      },
+    })
+    expect(res.status()).toBe(400)
+  })
+
   test('invalid UUID in route param returns 400', async ({ request }) => {
     const res = await request.get(`${API}/jobs/not-a-uuid`)
     expect(res.status()).toBe(400)
