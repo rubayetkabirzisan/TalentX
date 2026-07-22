@@ -54,23 +54,33 @@ During the maturation of our E2E test suite, we uncovered and resolved several c
 - **The Cause:** The project definition and the CI wiring were added at different times, and nobody had actually gone back to confirm the wiring matched the intent.
 - **The Fix:** Added `webkit` to the CI browser install step and a third `--project=webkit` to the UI test run, alongside Chromium and Firefox. **Status: pending as of this writing.** This has not yet been confirmed by an actual CI run — deliberately not verifying this locally either, since Playwright's WebKit engine has known `localhost` networking quirks on Windows (the same ones this Risk Register already documented) that could produce a false result either way. The real signal is the next Ubuntu CI run, not a local Windows one.
 
+### J. Job Deadline Enforcement — Partially Closed, One Real Gap Left Open on Purpose
+- **The Bug:** Not a bug — another route-coverage finding. Job postings have a hard deadline (`POST /employer/jobs` rejects a past deadline at creation time, and `POST /talent/jobs/:id/apply` is supposed to reject applications after a job's deadline has passed with `DEADLINE_PASSED`). Neither half had any test coverage.
+- **The Cause, and why only half of this got closed:** Creation-time validation was straightforward to test — POST a past deadline, expect 400. Apply-time enforcement was not: the check compares against **end of day** for the deadline date (`deadline.getTime() + 24h - 1`), not the literal timestamp. A fixture job can't be created with an already-past deadline (creation itself rejects that), and creating one a few seconds in the future and waiting doesn't work either, since it's still "today" and therefore still within the allowed window until midnight. Properly testing this would mean either writing a test that reliably spans midnight (impractical) or giving the test suite direct database write access to backdate a job's deadline after creation — a new capability (a raw `pg` client dependency) this suite doesn't otherwise have, for the sake of one edge case.
+- **The Fix:** Added the creation-time test only (`security.spec.js`). Deliberately did not ship a `test.skip()` placeholder for the apply-time case — a test that can never actually run is the same clutter problem as `ui-components.spec.js` was (Entry K), just disguised as a checkbox instead of a passing green test. The gap is real and stays open, documented here rather than hidden behind a skipped test that looks like progress but verifies nothing.
+
+### K. Removed a Test That Existed Just for the Sake of Testing
+- **The Bug:** Not a bug — the same audit lens applied backward, onto the existing suite instead of just new gaps. `TalentX-Frontend/tests/ui-components.spec.js` contained exactly one test: clicking a dark-mode toggle and asserting an HTML class changes.
+- **The Cause:** Checked against the same bar used everywhere else in this document — real consequence if broken, real business logic, real risk. This test has none of those. Dark mode is a cosmetic preference with no functional, security, or business consequence if it silently broke, and the underlying mechanism (`next-themes`/shadcn `ThemeProvider`) is stable, well-established third-party code, not custom logic worth guarding.
+- **The Fix:** Deleted the file rather than keep a test that exists only to keep a number higher. See the "Deliberately Not Automated" note below for the same reasoning applied to routes that were never tested in the first place.
+
 ---
 
 ## 2. Core Flows Verified ✅
 
-Our Playwright suite now boasts a **100% pass rate** across two CI-enforced projects — 30/30 UI tests in Chromium and Firefox, plus 37/37 API-level tests with no browser involved — covering the following critical user journeys and API contracts:
+**Confirmed as of the last verified run:** 30/30 UI tests in Chromium and Firefox, plus 37/37 API-level tests with no browser involved. **Since then, not yet reconfirmed:** `ui-components.spec.js` was removed (Entry K, so the UI count is now 29 until a fresh run confirms it), and one new API test was added for job-deadline validation (Entry J, so the API count should be 38). Also still pending: WebKit as a third UI browser, and the `match-bulk`/interview-scheduling/real-time-notification additions from the broader route-coverage audit (Entries I and J) — this document will report what an actual run says, not arithmetic.
+
+Covering the following critical user journeys and API contracts:
 
 - **Authentication:** End-to-end Sign-ups and Logins for both Employer and Talent roles.
 - **Role-Based Access Control (RBAC):** Verified at both the UI layer (Talents hard-blocked from Employer dashboards, unauthenticated users redirected to `/login`) and the API layer directly (401/403 responses for missing auth and wrong-role requests, with no browser involved).
 - **The Employer Workflow:** Creating jobs, validating missing required fields, viewing applicant lists, and exporting applicant data.
 - **The Talent Workflow:** Successfully navigating the multi-step Application Wizard and safely canceling out of flows without ghost-submissions.
-- **The Invitations Lifecycle:** Employer invites a talent, the talent sees it with job/employer details attached, only that talent can respond, only a pending invitation can be responded to, and accepting an invitation via `POST /talent/jobs/:id/apply?source=invitation` correctly marks the invitation accepted as a side effect. Added specifically to close a gap left by retiring the legacy suite in Entry G — see Entry H.
+- **The Invitations Lifecycle:** Employer invites a talent, the talent sees it with job/employer details attached, only that talent can respond, only a pending invitation can be responded to, and accepting an invitation via `POST /talent/jobs/:id/apply?source=invitation` correctly marks the invitation accepted as a side effect.
+- **Job Deadline Validation:** Job creation rejects a past deadline. (Apply-time enforcement of an already-passed deadline remains a known, documented gap — see Entry J.)
 - **Data Persistence:** Verifying that profile name edits successfully travel from the Next.js UI, through the Express Backend, into Postgres, and reflect back on the UI.
 - **Real-Time WebSockets:** Employer can initiate a message directly from the Applicant Tab, and the Talent receives the message instantly without refreshing.
 - **API Security & Resilience:** Direct API-level coverage of auth requirements, RBAC, CORS rejection, rate limiting, input validation, and error-response hygiene (no stack traces leaked in production).
-- **UI/UX Integrity:** Toggling Dark/Light mode correctly updates HTML root classes.
-
-> **Still pending confirmation:** WebKit has been wired into CI alongside Chromium and Firefox for the UI suite (see Entry I and the Risk Register below). Not yet reflected in the 30/30 figure above — that number is Chromium + Firefox only until an actual CI run confirms WebKit too.
 
 ---
 
@@ -87,7 +97,24 @@ Our Playwright suite now boasts a **100% pass rate** across two CI-enforced proj
 
 ---
 
-## 4. Automation Architecture
+## 4. Deliberately Not Automated 🚫
+
+A full route-coverage audit (Entry J and the round before it) found several backend routes and one existing test with no real justification for the effort of testing them. Each was checked against the actual current frontend and business logic before being set aside — this is a documented decision, not an oversight:
+
+| Item | Why it's skipped |
+|-------|-------------------|
+| `PUT /auth/password` | Real, working feature, but isolated, low-complexity CRUD with no dependent business logic elsewhere in the app. |
+| `PUT /me/skills` | Real feature, but its main consequence — feeding match scores — is already indirectly exercised once `match-bulk` has coverage. |
+| `GET/PUT /notifications` | Real feature, but simple read/mark-as-read CRUD with no state-machine logic and low consequence if broken. |
+| `GET /stats` | Purely a marketing number on the landing page hero section. No business logic, no security angle, no functional consequence if wrong — the clearest example in this whole audit of a route that exists but isn't worth testing. |
+| Duplicate-application prevention | Real protection exists (a DB `unique(job_id, talent_id)` constraint, converted by the app's generic error handler into a clean `409 Conflict`, not a raw crash) — but it's exercising an already-generic, already-proven mechanism, not bespoke business logic, unlike the invitation idempotency case in Entry H which had custom upsert logic worth locking down specifically. |
+| Apply-time deadline enforcement (`DEADLINE_PASSED`) | Different from the rest of this list — this one is a **real, unclosed gap**, not a judgment call that it doesn't matter. See Entry J for why it's genuinely impractical to test cleanly without adding a new dependency (direct DB access) to the suite for one edge case. Documented here as an honest limitation, not swept under a skipped test. |
+
+Separately, `TalentX-Frontend/tests/ui-components.spec.js` (dark-mode toggle) was removed outright rather than left in place — see Entry K. The standard applied consistently throughout this document: a test earns its place by verifying something with real, checkable consequence if it breaks, not by existing to make a coverage number look more complete than the app's actual risk profile.
+
+---
+
+## 5. Automation Architecture
 
 - **Framework:** Playwright (`npx playwright test`)
 - **CI/CD:** GitHub Actions (`.github/workflows/playwright.yml`). The pipeline spins up a Postgres database, starts Express and Next.js concurrently, utilizes `wait-on` for readiness checks, and runs both the browser-based UI suite (Chromium + Firefox) and a separate no-browser `api` project against the same running servers on every PR.
